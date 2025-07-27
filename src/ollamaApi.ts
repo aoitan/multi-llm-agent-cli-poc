@@ -16,7 +16,7 @@ export async function chatWithOllama(
   model: string,
   messages: Message[],
 ): Promise<ChatResponse> {
-  const ollamaUrl = (process.env.APP_OLLAMA_URL || 'http://localhost:11434').replace(/\/$/, ''); // Remove trailing slash if present
+  const ollamaUrl = (process.env.APP_OLLAMA_URL || 'http://localhost:11434').trim().replace(/\/$/, ''); // Remove trailing slash and trim whitespace
   const chatEndpoint = `${ollamaUrl}/api/chat`;
   try {
     const response = await axios.post<ChatResponse>(chatEndpoint, {
