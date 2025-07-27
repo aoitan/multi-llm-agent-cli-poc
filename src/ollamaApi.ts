@@ -15,9 +15,10 @@ interface ChatResponse {
 export async function chatWithOllama(
   model: string,
   messages: Message[],
+  ollamaUrl?: string, // Optional parameter for custom URL
 ): Promise<ChatResponse> {
-  const ollamaUrl = (process.env.APP_OLLAMA_URL || 'http://localhost:11434').trim().replace(/\/$/, ''); // Remove trailing slash and trim whitespace
-  const chatEndpoint = `${ollamaUrl}/api/chat`;
+  const baseUrl = (ollamaUrl || process.env.APP_OLLAMA_URL || 'http://localhost:11434').trim().replace(/\/$/, ''); // Remove trailing slash and trim whitespace
+  const chatEndpoint = `${baseUrl}/api/chat`;
   try {
     const response = await axios.post<ChatResponse>(chatEndpoint, {
       model: model,
