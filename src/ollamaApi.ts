@@ -16,7 +16,7 @@ export async function chatWithOllama(
   model: string,
   messages: Message[],
 ): Promise<ChatResponse> {
-  const ollamaUrl = process.env.OLLAMA_HOST || 'http://localhost:11434';
+  const ollamaUrl = process.env.APP_OLLAMA_URL || 'http://localhost:11434';
   const chatEndpoint = `${ollamaUrl}/api/chat`;
   try {
     const response = await axios.post<ChatResponse>(chatEndpoint, {
