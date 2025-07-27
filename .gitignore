@@ -30,3 +30,5 @@ dist/
 # Other
 *.bak
 *.swp
+.git_commit_message.txt
+local.prompts.md
