@@ -29,7 +29,8 @@ class Agent {
   }
 
   public getMessages(): Message[] {
-    return this.messages;
+    // Return a deep copy to prevent external mutation
+    return this.messages.map(msg => ({ ...msg }));
   }
 }
 
