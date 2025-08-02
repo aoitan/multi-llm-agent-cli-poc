@@ -114,13 +114,7 @@ ${lastThinkerImproverResponse}`;
     "あなたは会話の要約者です。与えられた会話履歴とユーザープロンプトに基づき、会話全体を要約し、最終的な結論や重要なポイントをまとめてください。"
   );
 
-  const summaryInputMessages: Message[] = [
-    { role: 'user', content: summaryPrompt },
-    ...fullConversationHistory // Pass the entire conversation history for summarization
-  ];
-
-  const finalSummaryResponse = await chatWithOllama(model1, summaryInputMessages);
-  const finalSummary = finalSummaryResponse.message.content;
+  const finalSummary = await summarizerAgent.sendMessage(summaryPrompt + '\n\n会話履歴:\n' + fullConversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n'));
 
   return `相談完了。最終要約:
 ${finalSummary}`; 

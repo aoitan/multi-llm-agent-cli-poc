@@ -84,13 +84,27 @@ describe('conductConsultation', () => {
     expect(mockChatWithOllama).toHaveBeenCalledWith(
       model1,
       expect.arrayContaining([
-        expect.objectContaining({ role: 'user', content: expect.stringContaining('以下の会話は、ユーザーのプロンプト「テストプロンプト」に対する議論です。この会話全体を要約し、最終的な結論や重要なポイントをまとめてください。') }), // Summarizer agent's user prompt
-        expect.objectContaining({ role: 'user', content: expect.stringContaining(`ユーザープロンプト: ${userPrompt}`) }), // Initial user prompt from fullConversationHistory
-        expect.objectContaining({ role: 'assistant', content: expect.stringContaining(`Agent 1 (${model1}): 思考者の最初の回答`) }), // Thinker's first response from fullConversationHistory
-        expect.objectContaining({ role: 'assistant', content: expect.stringContaining(`Agent 2 (${model2}): レビュアーのレビュー`) }), // Reviewer's first response from fullConversationHistory
-        expect.objectContaining({ role: 'assistant', content: expect.stringContaining(`Agent 1 (${model1}): 思考者の改善された回答 (1回目)`) }), // Thinker's first improved response from fullConversationHistory
-        expect.objectContaining({ role: 'assistant', content: expect.stringContaining(`Agent 2 (${model2}): レビュアーの2回目のレビュー`) }), // Reviewer's second response from fullConversationHistory
-        expect.objectContaining({ role: 'assistant', content: expect.stringContaining(`Agent 1 (${model1}): 思考者の改善された回答 (2回目)`) }), // Thinker's second improved response from fullConversationHistory
+        expect.objectContaining({ role: 'system', content: expect.stringContaining('あなたは会話の要約者です。') }), // Summarizer agent's system prompt
+        expect.objectContaining({
+          role: 'user',
+          content: expect.stringContaining(
+            `以下の会話は、ユーザーのプロンプト「${userPrompt}」に対する議論です。この会話全体を要約し、最終的な結論や重要なポイントをまとめてください。
+
+会話履歴:
+` +
+            `user: ユーザープロンプト: ${userPrompt}
+` +
+            `assistant: Agent 1 (${model1}): 思考者の最初の回答
+` +
+            `assistant: Agent 2 (${model2}): レビュアーのレビュー
+` +
+            `assistant: Agent 1 (${model1}): 思考者の改善された回答 (1回目)
+` +
+            `assistant: Agent 2 (${model2}): レビュアーの2回目のレビュー
+` +
+            `assistant: Agent 1 (${model1}): 思考者の改善された回答 (2回目)`
+          ),
+        }),
       ])
     );
 
