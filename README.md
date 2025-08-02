@@ -57,6 +57,8 @@ npm start "日本の少子高齢化問題について解決策を議論してく
 -   `src/agent.ts`: LLM間の相談ロジックと役割分担を定義しています。
 -   `src/ollamaApi.ts`: Ollama APIとの通信を行うためのラッパー関数を提供します。
 -   `doc/development_plan.md`: 開発計画が記載されています。
+-   `doc/design_talk/`: LLMとの議論の要約が格納されています。
+-   `doc/design/`: 各機能の設計書が格納されます。
 
 ## ライセンス
 
