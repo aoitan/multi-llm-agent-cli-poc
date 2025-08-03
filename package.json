@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "ts-node src/index.ts",
+    "single-eval": "ts-node src/singleAgentEval.ts",
     "test": "jest"
   },
   "keywords": [],
