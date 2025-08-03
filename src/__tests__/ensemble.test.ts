@@ -2,24 +2,33 @@ import { runEnsemble } from '../agent';
 import { chatWithOllama } from '../ollamaApi';
 
 jest.mock('../ollamaApi', () => ({
-  chatWithOllama: jest.fn(),
+  chatWithOllama: jest.fn((model, messages, onContent, onDone, onError) => {
+    process.nextTick(() => {
+      const lastMessage = messages[messages.length - 1];
+      let responseContent = '';
+      if (model === 'model-a') {
+        responseContent = 'Paris (from model-a)';
+      } else if (model === 'model-b') {
+        responseContent = 'Paris (from model-b)';
+      } else if (model === 'model-c') {
+        responseContent = 'Paris (from model-c)';
+      }
+      onContent(responseContent);
+      onDone();
+    });
+  }),
 }));
 
 describe('runEnsemble', () => {
   const mockChatWithOllama = chatWithOllama as jest.MockedFunction<typeof chatWithOllama>;
 
   beforeEach(() => {
-    mockChatWithOllama.mockReset();
+    mockChatWithOllama.mockClear();
   });
 
   test('should send the same prompt to multiple models and return their responses', async () => {
     const models = ['model-a', 'model-b', 'model-c'];
     const prompt = 'What is the capital of France?';
-
-    mockChatWithOllama
-      .mockResolvedValueOnce({ model: 'model-a', created_at: '', done: true, message: { role: 'assistant', content: 'Paris (from model-a)' } })
-      .mockResolvedValueOnce({ model: 'model-b', created_at: '', done: true, message: { role: 'assistant', content: 'Paris (from model-b)' } })
-      .mockResolvedValueOnce({ model: 'model-c', created_at: '', done: true, message: { role: 'assistant', content: 'Paris (from model-c)' } });
 
     const responses = await runEnsemble(prompt, models);
 
@@ -33,19 +42,28 @@ describe('runEnsemble', () => {
       'model-a',
       expect.arrayContaining([
         expect.objectContaining({ role: 'user', content: prompt })
-      ])
+      ]),
+      expect.any(Function), // onContent
+      expect.any(Function), // onDone
+      expect.any(Function)  // onError
     );
     expect(mockChatWithOllama).toHaveBeenCalledWith(
       'model-b',
       expect.arrayContaining([
         expect.objectContaining({ role: 'user', content: prompt })
-      ])
+      ]),
+      expect.any(Function), // onContent
+      expect.any(Function), // onDone
+      expect.any(Function)  // onError
     );
     expect(mockChatWithOllama).toHaveBeenCalledWith(
       'model-c',
       expect.arrayContaining([
         expect.objectContaining({ role: 'user', content: prompt })
-      ])
+      ]),
+      expect.any(Function), // onContent
+      expect.any(Function), // onDone
+      expect.any(Function)  // onError
     );
   });
 
