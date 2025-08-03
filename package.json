@@ -9,6 +9,7 @@
   "scripts": {
     "start": "ts-node src/index.ts",
     "single-eval": "ts-node src/singleAgentEval.ts",
+    "coop-eval": "ts-node src/cooperativeAgentEval.ts",
     "test": "jest"
   },
   "keywords": [],

@@ -127,7 +127,7 @@ ${lastThinkerImproverResponse}`;
 
   // Final summarization
   console.log('--- 最終要約の生成 ---');
-  const summaryPrompt = `以下の会話は、ユーザーのプロンプト「${userPrompt}」に対する議論です。この会話全体を要約し、最終的な結論や重要なポイントをまとめてください。`;
+  const summaryPrompt = `以下の会話は、ユーザーのプロンプト「${userPrompt}」に対する議論です。この会話全体を詳細に要約し、最終的な結論や重要なポイントをまとめてください。`;
 
   // Create a temporary agent for summarization, or use one of the existing agents
   // For simplicity, let's use the thinkerImproverAgent for summarization
