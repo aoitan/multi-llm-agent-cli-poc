@@ -3,8 +3,8 @@ import { conductConsultation } from './agent';
 async function main() {
   const args = process.argv.slice(2);
   const userPrompt = args[0];
-  const model1 = args[1] || 'gemma3:1b'; // Default to gemma3:1b if not provided
-  const model2 = args[2] || 'gemma3:1b'; // Default to gemma3:1b if not provided
+  const model1 = args[1] || 'llama3:8b'; // Default to llama3:8b if not provided
+  const model2 = args[2] || 'llama3:8b'; // Default to llama3:8b if not provided
 
   if (!userPrompt) {
     console.error('Usage: ts-node src/index.ts <your_prompt> [model1] [model2]');
@@ -24,5 +24,3 @@ async function main() {
 }
 
 main();
-
-
