@@ -32,3 +32,10 @@ dist/
 *.swp
 .git_commit_message.txt
 local.prompts.md
+
+# Blind Evaluation Outputs and Discussion Logs
+doc/blind_evaluation/
+
+# Talk Documents
+doc/design_talk/
+doc/mvp_talk/
