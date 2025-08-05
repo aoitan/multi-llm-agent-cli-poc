@@ -25,8 +25,7 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, prompt_file
 
     # The output from index.js will contain console.logs and then the final JSON output
     # We need to parse the JSON output from the end of the stdout
-    output_lines = result.stdout.strip().split('
-')
+    output_lines = result.stdout.strip().split('\n')
     # Try to extract the last valid JSON object from the output (supporting multi-line JSON)
     def extract_last_json(lines):
         # Scan from the end, accumulate lines that could form a JSON object
@@ -69,6 +68,7 @@ def main():
 
     base_prompt_file = "prompts/default_prompts.json"
     experimental_prompt_file = config.get("experimental_prompt_file_path")
+    evaluation_models = config.get("evaluation_models", ["llama3:8b", "llama3:8b"])
 
     if not experimental_prompt_file:
         print("Error: 'experimental_prompt_file_path' not found in config. Please specify it.")
@@ -85,10 +85,21 @@ def main():
         "config_file": args.config,
         "base_prompt_file": base_prompt_file,
         "experimental_prompt_file": experimental_prompt_file,
+        "evaluation_models": evaluation_models,
         "timestamp": timestamp
     }
     with open(os.path.join(output_dir, "metadata.json"), 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
+
+    # 評価プロンプトテンプレートの読み込み
+    evaluation_prompt_template_path = "prompts/evaluation_prompt_template.md"
+    evaluation_prompt_template = ""
+    if os.path.exists(evaluation_prompt_template_path):
+        with open(evaluation_prompt_template_path, 'r', encoding='utf-8') as f:
+            evaluation_prompt_template = f.read()
+    else:
+        print(f"Error: Evaluation prompt template not found at {evaluation_prompt_template_path}")
+        return
 
     for i in range(args.runs):
         print(f"\n--- Run {i+1}/{args.runs} ---")
@@ -108,6 +119,19 @@ def main():
             f.write(exp_summary)
         with open(os.path.join(output_dir, f"exp_log_{i+1}.json"), 'w', encoding='utf-8') as f:
             json.dump(exp_log, f, indent=2, ensure_ascii=False)
+
+        # 評価LLMによる評価実行
+        print("Running Evaluation LLM...")
+        # 評価プロンプトの生成
+        evaluation_prompt_content = evaluation_prompt_template.replace("${user_prompt}", args.user_prompt)
+        evaluation_prompt_content = evaluation_prompt_content.replace("${answer_a}", base_summary)
+        evaluation_prompt_content = evaluation_prompt_content.replace("${answer_b}", exp_summary)
+
+        eval_summary, eval_log = run_llm_consultation(evaluation_prompt_content, evaluation_models[0], evaluation_models[1], base_prompt_file) # 評価LLMはbase_prompt_fileを使用
+        with open(os.path.join(output_dir, f"evaluation_{i+1}.md"), 'w', encoding='utf-8') as f:
+            f.write(eval_summary)
+        with open(os.path.join(output_dir, f"evaluation_log_{i+1}.json"), 'w', encoding='utf-8') as f:
+            json.dump(eval_log, f, indent=2, ensure_ascii=False)
 
     print("\nA/B test completed.")
 
