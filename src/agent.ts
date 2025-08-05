@@ -1,8 +1,24 @@
 import { chatWithOllama } from './ollamaApi';
+import {
+  THINKER_IMPROVER_SYSTEM_PROMPT,
+  REVIEWER_SYSTEM_PROMPT,
+  THINKER_INITIAL_PROMPT_TEMPLATE,
+  REVIEWER_PROMPT_TEMPLATE,
+  IMPROVER_PROMPT_TEMPLATE,
+  SUMMARIZER_SYSTEM_PROMPT,
+  FINAL_REPORT_TEMPLATE,
+} from './prompts';
 
 interface Message {
   role: string;
   content: string;
+}
+
+interface DiscussionTurn {
+  turn: string;
+  agent_role: string;
+  prompt_sent: string;
+  response_received: string;
 }
 
 class Agent {
@@ -55,18 +71,19 @@ export async function conductConsultation(
   userPrompt: string,
   model1: string,
   model2: string,
-  cycles: number = 2 // Number of full cycles (Thinker -> Reviewer -> Improver)
-): Promise<string> {
-  let fullConversationHistory: Message[] = []; // Stores all messages for the entire consultation
+  cycles: number = 2
+): Promise<{ finalSummary: string; discussionLog: DiscussionTurn[] }> {
+  let fullConversationHistory: Message[] = [];
+  const discussionLog: DiscussionTurn[] = []; // To store structured discussion
 
   // Define agent roles and create agents
   const thinkerImproverAgent = new Agent(
     model1,
-    "あなたは思考者であり、指摘改善者です。ユーザーのプロンプトに対して深く思考し、回答を生成します。また、批判的レビュアーからの指摘を受けて、自身の回答を改善する役割も担います。"
+    THINKER_IMPROVER_SYSTEM_PROMPT
   );
   const reviewerAgent = new Agent(
     model2,
-    "あなたは批判的レビュアーです。思考者の回答を客観的かつ批判的に分析し、改善点や問題点を明確に指摘します。"
+    REVIEWER_SYSTEM_PROMPT
   );
 
   console.log('--- Consultation Start ---');
@@ -78,48 +95,57 @@ export async function conductConsultation(
   let lastReviewerResponse = '';
 
   // --- Initial Turn: Thinker (思考者) ---
-  console.log(`
---- ターン 1 (思考者) ---`);
-  const thinkerInitialPrompt = `ユーザーのプロンプトに対して、あなたの素の思考で回答してください。
-
-ユーザープロンプト:
-${userPrompt}`;
-
-  lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(thinkerInitialPrompt, (content) => {    process.stdout.write(content);  });  process.stdout.write('\n'); // ストリーミング出力後に改行  fullConversationHistory.push({ role: 'assistant', content: `Agent 1 (${thinkerImproverAgent.getModel()}): ${lastThinkerImproverResponse}` });
+  console.log(`\n--- ターン 1 (思考者) ---`);
+  const thinkerInitialPrompt = THINKER_INITIAL_PROMPT_TEMPLATE(userPrompt);
+  lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(thinkerInitialPrompt, (content) => {
+    process.stdout.write(content);
+  });
+  process.stdout.write('\n');
+  discussionLog.push({
+    turn: "ターン 1 (思考者)",
+    agent_role: "思考者",
+    prompt_sent: thinkerInitialPrompt,
+    response_received: lastThinkerImproverResponse,
+  });
+  fullConversationHistory.push({ role: 'assistant', content: `Agent 1 (${thinkerImproverAgent.getModel()}): ${lastThinkerImproverResponse}` });
 
   // --- Main Cycles (Reviewer -> Improver) ---
   for (let cycle = 0; cycle < cycles; cycle++) {
-    console.log(`
---- サイクル ${cycle + 1} (レビューと改善) ---`);
+    console.log(`\n--- サイクル ${cycle + 1} (レビューと改善) ---`);
 
     // Turn for Reviewer (批判的レビュアー)
-    const reviewerPrompt = `以下の思考者の回答を批判的にレビューし、改善点を見つけてください。
-
-思考者の回答:
-${lastThinkerImproverResponse}`;
-
+    const reviewerPrompt = REVIEWER_PROMPT_TEMPLATE(userPrompt, lastThinkerImproverResponse);
     console.log(`Agent 2 (${reviewerAgent.getModel()}) thinking... (役割: 批判的レビュアー)`);
     lastReviewerResponse = await reviewerAgent.sendMessage(reviewerPrompt, (content) => {
       process.stdout.write(content);
     });
-    process.stdout.write('\n'); // ストリーミング出力後に改行
+    process.stdout.write('\n');
+    discussionLog.push({
+      turn: `サイクル ${cycle + 1} (レビュアー)`,
+      agent_role: "批判的レビュアー",
+      prompt_sent: reviewerPrompt,
+      response_received: lastReviewerResponse,
+    });
     fullConversationHistory.push({ role: 'assistant', content: `Agent 2 (${reviewerAgent.getModel()}): ${lastReviewerResponse}` });
     
 
     // Turn for Thinker/Improver (指摘改善者)
-    const improverPrompt = `以下のレビューを参考に、あなたの以前の回答を改善してください。
-
-レビュー:
-${lastReviewerResponse}
-
-あなたの以前の回答:
-${lastThinkerImproverResponse}`;
-
+    const improverPrompt = IMPROVER_PROMPT_TEMPLATE(
+      userPrompt,
+      lastReviewerResponse,
+      lastThinkerImproverResponse
+    );
     console.log(`Agent 1 (${thinkerImproverAgent.getModel()}) thinking... (役割: 指摘改善者)`);
     lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(improverPrompt, (content) => {
       process.stdout.write(content);
     });
-    process.stdout.write('\n'); // ストリーミング出力後に改行
+    process.stdout.write('\n');
+    discussionLog.push({
+      turn: `サイクル ${cycle + 1} (改善者)`,
+      agent_role: "指摘改善者",
+      prompt_sent: improverPrompt,
+      response_received: lastThinkerImproverResponse,
+    });
     fullConversationHistory.push({ role: 'assistant', content: `Agent 1 (${thinkerImproverAgent.getModel()}): ${lastThinkerImproverResponse}` });
   }
 
@@ -127,21 +153,27 @@ ${lastThinkerImproverResponse}`;
 
   // Final summarization
   console.log('--- 最終要約の生成 ---');
-  const summaryPrompt = `以下の会話は、ユーザーのプロンプト「${userPrompt}」に対する議論です。この会話全体を要約し、最終的な結論や重要なポイントをまとめてください。`;
-
-  // Create a temporary agent for summarization, or use one of the existing agents
-  // For simplicity, let's use the thinkerImproverAgent for summarization
+  const summaryPrompt = FINAL_REPORT_TEMPLATE(
+    userPrompt,
+    lastThinkerImproverResponse
+  );
   const summarizerAgent = new Agent(
     model1,
-    "あなたは会話の要約者です。与えられた会話履歴とユーザープロンプトに基づき、会話全体を要約し、最終的な結論や重要なポイントをまとめてください。"
+    SUMMARIZER_SYSTEM_PROMPT
   );
 
-  const finalSummary = await summarizerAgent.sendMessage(summaryPrompt + '\n\n会話履歴:\n' + fullConversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n'), (content) => {
+  const finalSummary = await summarizerAgent.sendMessage(summaryPrompt, (content) => {
     process.stdout.write(content);
   });
-  process.stdout.write('\n'); // ストリーミング出力後に改行
+  process.stdout.write('\n');
+  discussionLog.push({
+    turn: "最終要約",
+    agent_role: "要約者",
+    prompt_sent: summaryPrompt,
+    response_received: finalSummary,
+  });
 
-  return `相談完了。最終要約:\n${finalSummary}`;
+  return { finalSummary, discussionLog };
 }
 
 export async function runEnsemble(
