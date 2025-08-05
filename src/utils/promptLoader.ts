@@ -36,7 +36,7 @@ export async function loadPromptFile(filePath: string): Promise<PromptFileConten
     try {
       parsedContent = JSON.parse(fileContent);
     } catch (jsonError) {
-      throw new Error(`Invalid JSON format in ${filePath}: ${jsonError.message}`);
+      throw new Error(`Invalid JSON format in ${filePath}: ${String(jsonError)}`);
     }
 
     // スキーマ検証
