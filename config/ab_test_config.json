@@ -1,4 +1,4 @@
 {
   "experimental_prompt_file_path": "prompts/sample_prompts.json",
-  "evaluation_model": "llama3:8b"
+  "evaluation_models": ["llama3:8b", "llama3:8b"]
 }
