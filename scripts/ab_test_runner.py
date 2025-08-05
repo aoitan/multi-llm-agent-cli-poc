@@ -19,22 +19,23 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, prompt_file
     # The output from index.js will contain console.logs and then the final JSON output
     # We need to parse the JSON output from the end of the stdout
     output_lines = result.stdout.strip().split('\n')
-    json_output_start = -1
-    for i, line in enumerate(output_lines):
-        if line.startswith('{') and line.endswith('}'): # Simple check for JSON object
-            json_output_start = i
-            break
-    
-    if json_output_start != -1:
-        json_str = output_lines[json_output_start]
-        try:
-            data = json.loads(json_str)
-            return data['finalSummary'], data['discussionLog']
-        except json.JSONDecodeError:
-            print(f"Warning: Could not decode JSON from output: {json_str}")
-            return result.stdout, [] # Return raw stdout if JSON parsing fails
+    # Try to extract the last valid JSON object from the output (supporting multi-line JSON)
+    def extract_last_json(lines):
+        # Scan from the end, accumulate lines that could form a JSON object
+        for start in range(len(lines)):
+            candidate = '\n'.join(lines[start:])
+            try:
+                data = json.loads(candidate)
+                return data
+            except json.JSONDecodeError:
+                continue
+        return None
+
+    data = extract_last_json(output_lines)
+    if data is not None:
+        return data.get('finalSummary', ''), data.get('discussionLog', [])
     else:
-        print("Warning: No JSON output found in stdout.")
+        print("Warning: No valid JSON output found in stdout.")
         return result.stdout, [] # Return raw stdout if no JSON is found
 
 def main():
