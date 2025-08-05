@@ -8,13 +8,20 @@ jest.mock('../ollamaApi', () => ({
     process.nextTick(() => {
       const lastMessage = messages[messages.length - 1];
       let responseContent = '';
-      if (lastMessage.content.includes('ユーザーのプロンプト')) {
-        responseContent = '思考者の最初の回答';
-      } else if (lastMessage.content.includes('思考者の回答を批判的にレビュー')) {
+
+      // システムプロンプトに基づいて応答を決定
+      if (messages[0].content.includes('あなたは思考者であり、指摘改善者です。')) {
+        // Thinker/Improver agent
+        if (lastMessage.content.includes('ユーザーのプロンプト')) {
+          responseContent = '思考者の最初の回答';
+        } else if (lastMessage.content.includes('レビューを参考に、あなたの以前の回答を改善')) {
+          responseContent = '思考者の改善された回答';
+        }
+      } else if (messages[0].content.includes('あなたは批判的レビュアーです。')) {
+        // Reviewer agent
         responseContent = 'レビュアーのレビュー';
-      } else if (lastMessage.content.includes('レビューを参考に、あなたの以前の回答を改善')) {
-        responseContent = '思考者の改善された回答';
-      } else if (lastMessage.content.includes('会話全体を要約')) {
+      } else if (messages[0].content.includes('あなたは議論の結論を構造化して出力する専門家です。')) {
+        // Summarizer agent
         responseContent = '最終要約';
       }
 
@@ -126,11 +133,11 @@ describe('conductConsultation', () => {
     expect(mockChatWithOllama).toHaveBeenCalledWith(
       model1,
       expect.arrayContaining([
-        expect.objectContaining({ role: 'system', content: expect.stringContaining('あなたは会話の要約者です。') }), // Summarizer agent's system prompt
+        expect.objectContaining({ role: 'system', content: expect.stringContaining('あなたは議論の結論を構造化して出力する専門家です。') }), // Summarizer agent's system prompt
         expect.objectContaining({
           role: 'user',
           content: expect.stringContaining(
-            `以下の会話は、ユーザーのプロンプト「${userPrompt}」に対する議論です。この会話全体を要約し、最終的な結論や重要なポイントをまとめてください。`
+            `以下のレポートテンプレートの各セクションを、提供された「最終改善案」の内容に基づいて埋めてください。`
           ),
         }),
       ]),
