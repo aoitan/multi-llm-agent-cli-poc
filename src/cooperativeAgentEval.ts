@@ -16,9 +16,12 @@ async function main() {
   console.log(`Using Agent 1: ${model1}, Agent 2: ${model2}, Cycles: ${cycles}`);
 
   try {
-    const result = await conductConsultation(userPrompt, model1, model2, cycles);
+    const { finalSummary, discussionLog } = await conductConsultation(userPrompt, model1, model2, cycles);
     console.log('\n--- Cooperative Agent Result ---');
-    console.log(result);
+    console.log(finalSummary);
+    console.log('\n--- Cooperative Agent Discussion Log Start ---');
+    console.log(JSON.stringify(discussionLog, null, 2));
+    console.log('--- Cooperative Agent Discussion Log End ---');
   } catch (error) {
     console.error('An error occurred during cooperative agent evaluation:', error);
   }
