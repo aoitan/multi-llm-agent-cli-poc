@@ -35,21 +35,25 @@ async function main() {
       prompts = await loadPromptFile(promptFilePath);
       console.log(`Loaded prompts from config file: ${configFilePath}`);
     } catch (error) {
-      console.error(`Error loading configuration or prompt file: ${error.message}`);
+      const errorMsg = (error && typeof error === 'object' && typeof (error as any).message === 'string')
+        ? (error as any).message
+        : String(error);
+      console.error(`Error loading configuration or prompt file: ${errorMsg}`);
       process.exit(1);
     }
   } else {
-    // デフォルトプロンプトのロードはタスク4.5で実装
-    console.warn('No config file specified. Default prompts will be used (once implemented in task 4.5).');
-    // 仮のプロンプトを設定 (後で削除)
-    prompts = {
-      format_version: '1.0',
-      prompts: [
-        { id: 'thought_improver_agent_default', description: 'Default Thinker/Improver', content: 'Default Thinker/Improver Prompt' },
-        { id: 'reviewer_agent_default', description: 'Default Reviewer', content: 'Default Reviewer Prompt' },
-        { id: 'summarizer_agent_default', description: 'Default Summarizer', content: 'Default Summarizer Prompt' },
-      ],
-    };
+    // デフォルトプロンプトのロード
+    const defaultPromptFilePath = path.resolve(process.cwd(), 'prompts', 'default_prompts.json');
+    try {
+      prompts = await loadPromptFile(defaultPromptFilePath);
+      console.log(`No config file specified. Loaded default prompts from: ${defaultPromptFilePath}`);
+    } catch (error) {
+      const errorMsg = (error && typeof error === 'object' && typeof (error as any).message === 'string')
+        ? (error as any).message
+        : String(error);
+      console.error(`Error loading default prompt file: ${errorMsg}`);
+      process.exit(1);
+    }
   }
 
   try {
