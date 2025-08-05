@@ -257,7 +257,7 @@ def generate_prompts():
         with open(MAPPING_FILE, 'r') as f:
             mapping = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        print(f"Error: {MAPPING_FILE} not found or invalid. Please run prepare_evaluation.sh and generate_reports.sh first.")
+        print(f"Error: {MAPPING_FILE} not found or invalid. Please run prepare_evaluation.py and generate_reports.py first.")
         return
 
     # Group files by scenario
