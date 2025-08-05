@@ -35,6 +35,17 @@ jest.mock('../ollamaApi', () => ({
   }),
 }));
 
+function fillTemplate(template: string, variables: { [key: string]: string }): string {
+  let result = template;
+  for (const key in variables) {
+    if (Object.prototype.hasOwnProperty.call(variables, key)) {
+      const placeholder = `\${${key}}`;
+      result = result.replace(new RegExp(placeholder, 'g'), variables[key]);
+    }
+  }
+  return result;
+}
+
 describe('conductConsultation', () => {
   const mockChatWithOllama = chatWithOllama as jest.MockedFunction<typeof chatWithOllama>;
   const model1 = 'test-model-1';
@@ -74,7 +85,9 @@ describe('conductConsultation', () => {
       model1,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining(userPrompt) })
+        expect.objectContaining({ role: 'user', content: expect.stringContaining(
+          fillTemplate(mockPrompts.prompts.find(p => p.id === 'THINKER_INITIAL_PROMPT_TEMPLATE')?.content || '', { userPrompt })
+        ) })
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
@@ -86,7 +99,9 @@ describe('conductConsultation', () => {
       model2,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining('思考者の最初の回答') })
+        expect.objectContaining({ role: 'user', content: expect.stringContaining(
+          fillTemplate(mockPrompts.prompts.find(p => p.id === 'REVIEWER_PROMPT_TEMPLATE')?.content || '', { userPrompt, lastThinkerImproverResponse: '思考者の最初の回答' })
+        ) })
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
@@ -98,7 +113,9 @@ describe('conductConsultation', () => {
       model1,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining('レビュアーのレビュー') })
+        expect.objectContaining({ role: 'user', content: expect.stringContaining(
+          fillTemplate(mockPrompts.prompts.find(p => p.id === 'IMPROVER_PROMPT_TEMPLATE')?.content || '', { userPrompt, lastReviewerResponse: 'レビュアーのレビュー', lastThinkerImproverResponse: '思考者の最初の回答' })
+        ) })
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
@@ -110,7 +127,9 @@ describe('conductConsultation', () => {
       model2,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining('思考者の改善された回答') })
+        expect.objectContaining({ role: 'user', content: expect.stringContaining(
+          fillTemplate(mockPrompts.prompts.find(p => p.id === 'REVIEWER_PROMPT_TEMPLATE')?.content || '', { userPrompt, lastThinkerImproverResponse: '思考者の改善された回答' })
+        ) })
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
@@ -122,7 +141,9 @@ describe('conductConsultation', () => {
       model1,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining('レビュアーのレビュー') }) // 修正
+        expect.objectContaining({ role: 'user', content: expect.stringContaining(
+          fillTemplate(mockPrompts.prompts.find(p => p.id === 'IMPROVER_PROMPT_TEMPLATE')?.content || '', { userPrompt, lastReviewerResponse: 'レビュアーのレビュー', lastThinkerImproverResponse: '思考者の改善された回答' })
+        ) }) // 修正
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
@@ -137,7 +158,7 @@ describe('conductConsultation', () => {
         expect.objectContaining({
           role: 'user',
           content: expect.stringContaining(
-            `以下のレポートテンプレートの各セクションを、提供された「最終改善案」の内容に基づいて埋めてください。`
+            fillTemplate(mockPrompts.prompts.find(p => p.id === 'FINAL_REPORT_TEMPLATE')?.content || '', { userPrompt, finalAnswer: '思考者の改善された回答' })
           ),
         }),
       ]),

@@ -100,7 +100,7 @@ export async function conductConsultation(
   if (!thinkerInitialPromptTemplate) {
     throw new Error('THINKER_INITIAL_PROMPT_TEMPLATE not found in the provided prompt file.');
   }
-  const thinkerInitialPrompt = thinkerInitialPromptTemplate.replace('${userPrompt}', userPrompt);
+  const thinkerInitialPrompt = fillTemplate(thinkerInitialPromptTemplate, { userPrompt });
   lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(thinkerInitialPrompt, (content) => {
     process.stdout.write(content);
   });
@@ -122,9 +122,10 @@ export async function conductConsultation(
     if (!reviewerPromptTemplate) {
       throw new Error('REVIEWER_PROMPT_TEMPLATE not found in the provided prompt file.');
     }
-    const reviewerPrompt = reviewerPromptTemplate
-      .replace('${userPrompt}', userPrompt)
-      .replace('${lastThinkerImproverResponse}', lastThinkerImproverResponse);
+    const reviewerPrompt = fillTemplate(reviewerPromptTemplate, {
+      userPrompt,
+      lastThinkerImproverResponse,
+    });
     console.log(`Agent 2 (${reviewerAgent.getModel()}) thinking... (役割: 批判的レビュアー)`);
     lastReviewerResponse = await reviewerAgent.sendMessage(reviewerPrompt, (content) => {
       process.stdout.write(content);
@@ -144,10 +145,11 @@ export async function conductConsultation(
     if (!improverPromptTemplate) {
       throw new Error('IMPROVER_PROMPT_TEMPLATE not found in the provided prompt file.');
     }
-    const improverPrompt = improverPromptTemplate
-      .replace('${userPrompt}', userPrompt)
-      .replace('${lastReviewerResponse}', lastReviewerResponse)
-      .replace('${lastThinkerImproverResponse}', lastThinkerImproverResponse);
+    const improverPrompt = fillTemplate(improverPromptTemplate, {
+      userPrompt,
+      lastReviewerResponse,
+      lastThinkerImproverResponse,
+    });
     console.log(`Agent 1 (${thinkerImproverAgent.getModel()}) thinking... (役割: 指摘改善者)`);
     lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(improverPrompt, (content) => {
       process.stdout.write(content);
@@ -173,9 +175,10 @@ export async function conductConsultation(
     throw new Error('Required summarizer prompts not found in the provided prompt file.');
   }
 
-  const summaryPrompt = finalReportTemplate
-    .replace('${userPrompt}', userPrompt)
-    .replace('${finalAnswer}', lastThinkerImproverResponse);
+  const summaryPrompt = fillTemplate(finalReportTemplate, {
+    userPrompt,
+    finalAnswer: lastThinkerImproverResponse,
+  });
 
   const summarizerAgent = new Agent(
     model1,
@@ -226,4 +229,15 @@ export async function runEnsemble(
     ensembleResponses.push(fullResponse);
   }
   return ensembleResponses;
+}
+
+function fillTemplate(template: string, variables: { [key: string]: string }): string {
+  let result = template;
+  for (const key in variables) {
+    if (Object.prototype.hasOwnProperty.call(variables, key)) {
+      const placeholder = `\${${key}}`;
+      result = result.replace(new RegExp(placeholder, 'g'), variables[key]);
+    }
+  }
+  return result;
 }
