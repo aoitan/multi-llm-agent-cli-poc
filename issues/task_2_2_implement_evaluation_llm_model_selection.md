@@ -10,7 +10,7 @@ A/Bテストスクリプトが、評価に使用するLLMモデルを外部設�
 
 ## 受け入れ条件
 
-*   `scripts/ab_test_config.py`のようなPython設定ファイルで、評価LLMのモデルを指定できること。
+*   `config/ab_test_config.json`のようなJSON設定ファイルで、評価LLMのモデルを指定できること。
 *   `ab_test_runner.py`がこの設定を読み込み、評価LLMのインスタンス化に使用できること。
 
 ## 作業手順
