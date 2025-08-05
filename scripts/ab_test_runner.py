@@ -15,10 +15,18 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, prompt_file
         "--config", prompt_file_path # Pass the prompt file path as a config
     ]
     print(f"Running command: {" ".join(command)}")
-    result = subprocess.run(command, capture_output=True, text=True, check=True)
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Command '{' '.join(command)}' failed with exit code {e.returncode}")
+        print(f"Stdout:\n{e.stdout}")
+        print(f"Stderr:\n{e.stderr}")
+        return e.stdout if e.stdout else "", []  # Return error output and empty log
+
     # The output from index.js will contain console.logs and then the final JSON output
     # We need to parse the JSON output from the end of the stdout
-    output_lines = result.stdout.strip().split('\n')
+    output_lines = result.stdout.strip().split('
+')
     # Try to extract the last valid JSON object from the output (supporting multi-line JSON)
     def extract_last_json(lines):
         # Scan from the end, accumulate lines that could form a JSON object
