@@ -10,7 +10,7 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, prompt_file
     command = [
         "node",
         "dist/index.js", # Assuming dist/index.js is the entry point for conductConsultation
-        user_prompt,
+        "--user-prompt", user_prompt,
         model1,
         model2,
         "--config", prompt_file_path # Pass the prompt file path as a config

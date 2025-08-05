@@ -13,11 +13,15 @@ async function main() {
       type: 'string',
       description: 'Path to the configuration file',
     })
+    .option('user-prompt', {
+      type: 'string',
+      description: 'The user prompt for the LLM.',
+    })
     .parse();
 
-  const userPrompt = argv._[0] as string;
-  const model1 = (argv._[1] as string) || 'llama3:8b'; // Default to llama3:8b if not provided
-  const model2 = (argv._[2] as string) || 'llama3:8b'; // Default to llama3:8b if not provided
+  const userPrompt = argv['user-prompt'] as string; // Get user prompt from option
+  const model1 = (argv._[0] as string) || 'llama3:8b'; // Default to llama3:8b if not provided
+  const model2 = (argv._[1] as string) || 'llama3:8b'; // Default to llama3:8b if not provided
 
   if (!userPrompt) {
     console.error('Usage: npm start "<your_prompt>" [model1] [model2] [--config <config_file_path>]');
