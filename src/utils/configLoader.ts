@@ -27,8 +27,8 @@ export async function loadConfigFile(filePath: string): Promise<ConfigContent> {
     let parsedContent: any;
     try {
       parsedContent = JSON.parse(fileContent);
-    } catch (jsonError) {
-      throw new Error(`Invalid JSON format in ${filePath}: ${jsonError.message}`);
+    } catch (jsonError: unknown) {
+      throw new Error(`Invalid JSON format in ${filePath}: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
     }
 
     // スキーマ検証

@@ -1,4 +1,6 @@
 import { conductConsultation } from './agent';
+import { loadPromptFile, PromptFileContent } from './utils/promptLoader';
+import * as path from 'path';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -15,9 +17,20 @@ async function main() {
   console.log(`Starting cooperative agent evaluation for prompt: "${userPrompt}"`);
   console.log(`Using Agent 1: ${model1}, Agent 2: ${model2}, Cycles: ${cycles}`);
 
+  let prompts: PromptFileContent;
+  const defaultPromptFilePath = path.resolve(process.cwd(), 'prompts', 'default_prompts.json');
   try {
-    const { finalSummary, discussionLog } = await conductConsultation(userPrompt, model1, model2, cycles);
+    prompts = await loadPromptFile(defaultPromptFilePath);
+    console.log(`Loaded default prompts from: ${defaultPromptFilePath}`);
+  } catch (error) {
+    console.error(`Error loading default prompt file: ${error}`);
+    process.exit(1);
+  }
+
+  try {
+    const { finalSummary, discussionLog } = await conductConsultation(userPrompt, model1, model2, prompts, cycles);
     console.log('\n--- Cooperative Agent Result ---');
+
     console.log(finalSummary);
     console.log('\n--- Cooperative Agent Discussion Log Start ---');
     console.log(JSON.stringify(discussionLog, null, 2));

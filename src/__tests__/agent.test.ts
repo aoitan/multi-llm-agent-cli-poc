@@ -33,6 +33,20 @@ describe('conductConsultation', () => {
   const model1 = 'test-model-1';
   const model2 = 'test-model-2';
 
+  // モックのPromptFileContentを作成
+  const mockPrompts = {
+    format_version: '1.0',
+    prompts: [
+      { id: 'THINKER_IMPROVER_SYSTEM_PROMPT', description: '', content: 'あなたは思考者であり、指摘改善者です。' },
+      { id: 'REVIEWER_SYSTEM_PROMPT', description: '', content: 'あなたは批判的レビュアーです。' },
+      { id: 'THINKER_INITIAL_PROMPT_TEMPLATE', description: '', content: 'ユーザーのプロンプトに対して、あなたの素の思考で回答してください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nあなたの回答:' },
+      { id: 'REVIEWER_PROMPT_TEMPLATE', description: '', content: '以下の思考者の回答を批判的にレビューし、改善点を見つけてください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\n思考者の回答:\n${lastThinkerImproverResponse}' },
+      { id: 'IMPROVER_PROMPT_TEMPLATE', description: '', content: '以下のレビューを参考に、あなたの以前の回答を改善してください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nレビュー:\n${lastReviewerResponse}\n\nあなたの以前の回答:\n${lastThinkerImproverResponse}' },
+      { id: 'SUMMARIZER_SYSTEM_PROMPT', description: '', content: 'あなたは議論の結論を構造化して出力する専門家です。' },
+      { id: 'FINAL_REPORT_TEMPLATE', description: '', content: '以下のレポートテンプレートの各セクションを、提供された「最終改善案」の内容に基づいて埋めてください。\nユーザープロンプト: ${userPrompt}\n最終改善案: ${finalAnswer}' },
+    ],
+  };
+
   beforeEach(() => {
     // 各テストの前にモックをリセット
     mockChatWithOllama.mockClear(); // mockResetではなくmockClearを使用
@@ -42,10 +56,10 @@ describe('conductConsultation', () => {
     const userPrompt = 'テストプロンプト';
     const cycles = 2;
 
-    const result = await conductConsultation(userPrompt, model1, model2, cycles);
+    const result = await conductConsultation(userPrompt, model1, model2, mockPrompts, cycles);
 
     // 最終要約が返されることを確認
-    expect(result).toContain('最終要約');
+    expect(result.finalSummary).toContain('最終要約');
 
     // chatWithOllamaが正しい引数で呼び出されたことを確認
     // 思考者の初期プロンプト
@@ -133,9 +147,9 @@ describe('conductConsultation', () => {
     const userPrompt = 'テストプロンプト';
     const cycles = 0;
 
-    const result = await conductConsultation(userPrompt, model1, model2, cycles);
+    const result = await conductConsultation(userPrompt, model1, model2, mockPrompts, cycles);
 
-    expect(result).toContain('最終要約');
+    expect(result.finalSummary).toContain('最終要約');
     expect(mockChatWithOllama).toHaveBeenCalledTimes(2); // 初期思考者 + 要約
   });
 });
