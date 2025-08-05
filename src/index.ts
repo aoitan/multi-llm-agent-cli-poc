@@ -53,7 +53,7 @@ async function main() {
 
   try {
     // conductConsultation のシグネチャ変更が必要
-    const result = await conductConsultation(userPrompt, model1, model2 /*, prompts */);
+    const result = await conductConsultation(userPrompt, model1, model2, prompts);
     console.log('\n--- Final Consultation Result ---');
     console.log(result);
   } catch (error) {
