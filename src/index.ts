@@ -1,6 +1,7 @@
 import { conductConsultation } from './agent';
 import { loadPromptFile, PromptFileContent } from './utils/promptLoader';
 import { loadConfigFile, ConfigContent } from './utils/configLoader';
+import { getErrorMessage } from './utils/errorUtils';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as path from 'path';
@@ -35,10 +36,7 @@ async function main() {
       prompts = await loadPromptFile(promptFilePath);
       console.log(`Loaded prompts from config file: ${configFilePath}`);
     } catch (error) {
-      const errorMsg = (error && typeof error === 'object' && typeof (error as any).message === 'string')
-        ? (error as any).message
-        : String(error);
-      console.error(`Error loading configuration or prompt file: ${errorMsg}`);
+      console.error(`Error loading configuration or prompt file: ${getErrorMessage(error)}`);
       process.exit(1);
     }
   } else {
@@ -48,10 +46,7 @@ async function main() {
       prompts = await loadPromptFile(defaultPromptFilePath);
       console.log(`No config file specified. Loaded default prompts from: ${defaultPromptFilePath}`);
     } catch (error) {
-      const errorMsg = (error && typeof error === 'object' && typeof (error as any).message === 'string')
-        ? (error as any).message
-        : String(error);
-      console.error(`Error loading default prompt file: ${errorMsg}`);
+      console.error(`Error loading default prompt file: ${getErrorMessage(error)}`);
       process.exit(1);
     }
   }
@@ -62,7 +57,7 @@ async function main() {
     console.log('\n--- Final Consultation Result ---');
     console.log(result);
   } catch (error) {
-    console.error('An error occurred during consultation:', error);
+    console.error('An error occurred during consultation:', getErrorMessage(error));
   }
 }
 
