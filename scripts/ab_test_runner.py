@@ -3,6 +3,7 @@ import os
 import json
 import subprocess
 from datetime import datetime
+from string import Template
 
 def run_llm_consultation(user_prompt: str, model1: str, model2: str, prompt_file_path: str):
     """Runs the LLM consultation and returns the final summary and discussion log."""
@@ -123,9 +124,12 @@ def main():
         # 評価LLMによる評価実行
         print("Running Evaluation LLM...")
         # 評価プロンプトの生成
-        evaluation_prompt_content = evaluation_prompt_template.replace("${user_prompt}", args.user_prompt)
-        evaluation_prompt_content = evaluation_prompt_content.replace("${answer_a}", base_summary)
-        evaluation_prompt_content = evaluation_prompt_content.replace("${answer_b}", exp_summary)
+        template = Template(evaluation_prompt_template)
+        evaluation_prompt_content = template.safe_substitute(
+            user_prompt=args.user_prompt,
+            answer_a=base_summary,
+            answer_b=exp_summary
+        )
 
         eval_summary, eval_log = run_llm_consultation(evaluation_prompt_content, evaluation_models[0], evaluation_models[1], base_prompt_file) # 評価LLMはbase_prompt_fileを使用
         with open(os.path.join(output_dir, f"evaluation_{i+1}.md"), 'w', encoding='utf-8') as f:
