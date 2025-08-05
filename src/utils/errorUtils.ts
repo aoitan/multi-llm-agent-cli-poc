@@ -6,8 +6,8 @@
  * @returns エラーメッセージ文字列
  */
 export function getErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && typeof (error as any).message === 'string') {
-    return (error as any).message;
+  if (error instanceof Error) {
+    return error.message;
   }
   return String(error);
 }
