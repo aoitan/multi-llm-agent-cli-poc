@@ -100,7 +100,7 @@ export async function conductConsultation(
   if (!thinkerInitialPromptTemplate) {
     throw new Error('THINKER_INITIAL_PROMPT_TEMPLATE not found in the provided prompt file.');
   }
-  const thinkerInitialPrompt = fillTemplate(thinkerInitialPromptTemplate, { userPrompt });
+  const thinkerInitialPrompt = fillTemplate(thinkerInitialPromptTemplate, { userPrompt: userPrompt });
   lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(thinkerInitialPrompt, (content) => {
     process.stdout.write(content);
   });
@@ -123,7 +123,7 @@ export async function conductConsultation(
       throw new Error('REVIEWER_PROMPT_TEMPLATE not found in the provided prompt file.');
     }
     const reviewerPrompt = fillTemplate(reviewerPromptTemplate, {
-      userPrompt,
+      userPrompt: userPrompt,
       lastThinkerImproverResponse,
     });
     console.log(`Agent 2 (${reviewerAgent.getModel()}) thinking... (役割: 批判的レビュアー)`);
@@ -146,7 +146,7 @@ export async function conductConsultation(
       throw new Error('IMPROVER_PROMPT_TEMPLATE not found in the provided prompt file.');
     }
     const improverPrompt = fillTemplate(improverPromptTemplate, {
-      userPrompt,
+      userPrompt: userPrompt,
       lastReviewerResponse,
       lastThinkerImproverResponse,
     });
@@ -176,7 +176,7 @@ export async function conductConsultation(
   }
 
   const summaryPrompt = fillTemplate(finalReportTemplate, {
-    userPrompt,
+    userPrompt: userPrompt,
     finalAnswer: lastThinkerImproverResponse,
   });
 
@@ -235,7 +235,7 @@ function fillTemplate(template: string, variables: { [key: string]: string }): s
   let result = template;
   for (const key in variables) {
     if (Object.prototype.hasOwnProperty.call(variables, key)) {
-      const placeholder = `\${${key}}`;
+      const placeholder = `\$\{${key}\}`;
       result = result.replace(new RegExp(placeholder, 'g'), variables[key]);
     }
   }
