@@ -12,9 +12,7 @@ describe('loadPromptFile', () => {
 
   beforeAll(() => {
     // テスト用ディレクトリの作成
-    if (!fs.existsSync(testPromptsDir)) {
-      fs.mkdirSync(testPromptsDir);
-    }
+    fs.mkdirSync(testPromptsDir, { recursive: true });
 
     // 有効なプロンプトファイル
     fs.writeFileSync(validPromptFilePath, JSON.stringify({
@@ -43,9 +41,9 @@ describe('loadPromptFile', () => {
     }, null, 2));
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     // テスト用ディレクトリの削除
-    fs.rmSync(testPromptsDir, { recursive: true, force: true });
+    await fs.promises.rm(testPromptsDir, { recursive: true, force: true });
   });
 
   it('should load a valid prompt file successfully', async () => {
