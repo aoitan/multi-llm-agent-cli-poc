@@ -64,3 +64,14 @@ export async function loadPromptFile(filePath: string): Promise<PromptFileConten
     throw error;
   }
 }
+
+/**
+ * プロンプトIDに基づいて特定のプロンプト定義を検索する。
+ *
+ * @param prompts プロンプト定義の配列
+ * @param id 検索するプロンプトのID
+ * @returns PromptDefinition | undefined 見つかったプロンプト定義、またはundefined
+ */
+export function getPromptById(prompts: PromptDefinition[], id: string): PromptDefinition | undefined {
+  return prompts.find(prompt => prompt.id === id);
+}

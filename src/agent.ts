@@ -1,13 +1,5 @@
 import { chatWithOllama } from './ollamaApi';
-import {
-  THINKER_IMPROVER_SYSTEM_PROMPT,
-  REVIEWER_SYSTEM_PROMPT,
-  THINKER_INITIAL_PROMPT_TEMPLATE,
-  REVIEWER_PROMPT_TEMPLATE,
-  IMPROVER_PROMPT_TEMPLATE,
-  SUMMARIZER_SYSTEM_PROMPT,
-  FINAL_REPORT_TEMPLATE,
-} from './prompts';
+import { PromptFileContent, getPromptById } from './utils/promptLoader';
 
 interface Message {
   role: string;
@@ -71,19 +63,27 @@ export async function conductConsultation(
   userPrompt: string,
   model1: string,
   model2: string,
+  prompts: PromptFileContent,
   cycles: number = 2
 ): Promise<{ finalSummary: string; discussionLog: DiscussionTurn[] }> {
   let fullConversationHistory: Message[] = [];
   const discussionLog: DiscussionTurn[] = []; // To store structured discussion
 
   // Define agent roles and create agents
+  const thinkerImproverSystemPrompt = getPromptById(prompts.prompts, 'THINKER_IMPROVER_SYSTEM_PROMPT')?.content;
+  const reviewerSystemPrompt = getPromptById(prompts.prompts, 'REVIEWER_SYSTEM_PROMPT')?.content;
+
+  if (!thinkerImproverSystemPrompt || !reviewerSystemPrompt) {
+    throw new Error('Required system prompts not found in the provided prompt file.');
+  }
+
   const thinkerImproverAgent = new Agent(
     model1,
-    THINKER_IMPROVER_SYSTEM_PROMPT
+    thinkerImproverSystemPrompt
   );
   const reviewerAgent = new Agent(
     model2,
-    REVIEWER_SYSTEM_PROMPT
+    reviewerSystemPrompt
   );
 
   console.log('--- Consultation Start ---');
@@ -96,7 +96,11 @@ export async function conductConsultation(
 
   // --- Initial Turn: Thinker (思考者) ---
   console.log(`\n--- ターン 1 (思考者) ---`);
-  const thinkerInitialPrompt = THINKER_INITIAL_PROMPT_TEMPLATE(userPrompt);
+  const thinkerInitialPromptTemplate = getPromptById(prompts.prompts, 'THINKER_INITIAL_PROMPT_TEMPLATE')?.content;
+  if (!thinkerInitialPromptTemplate) {
+    throw new Error('THINKER_INITIAL_PROMPT_TEMPLATE not found in the provided prompt file.');
+  }
+  const thinkerInitialPrompt = thinkerInitialPromptTemplate.replace('${userPrompt}', userPrompt);
   lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(thinkerInitialPrompt, (content) => {
     process.stdout.write(content);
   });
@@ -114,7 +118,13 @@ export async function conductConsultation(
     console.log(`\n--- サイクル ${cycle + 1} (レビューと改善) ---`);
 
     // Turn for Reviewer (批判的レビュアー)
-    const reviewerPrompt = REVIEWER_PROMPT_TEMPLATE(userPrompt, lastThinkerImproverResponse);
+    const reviewerPromptTemplate = getPromptById(prompts.prompts, 'REVIEWER_PROMPT_TEMPLATE')?.content;
+    if (!reviewerPromptTemplate) {
+      throw new Error('REVIEWER_PROMPT_TEMPLATE not found in the provided prompt file.');
+    }
+    const reviewerPrompt = reviewerPromptTemplate
+      .replace('${userPrompt}', userPrompt)
+      .replace('${lastThinkerImproverResponse}', lastThinkerImproverResponse);
     console.log(`Agent 2 (${reviewerAgent.getModel()}) thinking... (役割: 批判的レビュアー)`);
     lastReviewerResponse = await reviewerAgent.sendMessage(reviewerPrompt, (content) => {
       process.stdout.write(content);
@@ -130,11 +140,14 @@ export async function conductConsultation(
     
 
     // Turn for Thinker/Improver (指摘改善者)
-    const improverPrompt = IMPROVER_PROMPT_TEMPLATE(
-      userPrompt,
-      lastReviewerResponse,
-      lastThinkerImproverResponse
-    );
+    const improverPromptTemplate = getPromptById(prompts.prompts, 'IMPROVER_PROMPT_TEMPLATE')?.content;
+    if (!improverPromptTemplate) {
+      throw new Error('IMPROVER_PROMPT_TEMPLATE not found in the provided prompt file.');
+    }
+    const improverPrompt = improverPromptTemplate
+      .replace('${userPrompt}', userPrompt)
+      .replace('${lastReviewerResponse}', lastReviewerResponse)
+      .replace('${lastThinkerImproverResponse}', lastThinkerImproverResponse);
     console.log(`Agent 1 (${thinkerImproverAgent.getModel()}) thinking... (役割: 指摘改善者)`);
     lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(improverPrompt, (content) => {
       process.stdout.write(content);
@@ -153,13 +166,20 @@ export async function conductConsultation(
 
   // Final summarization
   console.log('--- 最終要約の生成 ---');
-  const summaryPrompt = FINAL_REPORT_TEMPLATE(
-    userPrompt,
-    lastThinkerImproverResponse
-  );
+  const summarizerSystemPrompt = getPromptById(prompts.prompts, 'SUMMARIZER_SYSTEM_PROMPT')?.content;
+  const finalReportTemplate = getPromptById(prompts.prompts, 'FINAL_REPORT_TEMPLATE')?.content;
+
+  if (!summarizerSystemPrompt || !finalReportTemplate) {
+    throw new Error('Required summarizer prompts not found in the provided prompt file.');
+  }
+
+  const summaryPrompt = finalReportTemplate
+    .replace('${userPrompt}', userPrompt)
+    .replace('${finalAnswer}', lastThinkerImproverResponse);
+
   const summarizerAgent = new Agent(
     model1,
-    SUMMARIZER_SYSTEM_PROMPT
+    summarizerSystemPrompt
   );
 
   const finalSummary = await summarizerAgent.sendMessage(summaryPrompt, (content) => {
