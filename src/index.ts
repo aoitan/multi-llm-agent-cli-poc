@@ -1,6 +1,7 @@
 import { conductConsultation } from './agent';
 import { loadPromptFile, PromptFileContent } from './utils/promptLoader';
 import { loadConfigFile, ConfigContent } from './utils/configLoader';
+import { getErrorMessage } from './utils/errorUtils';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as path from 'path';
@@ -35,21 +36,19 @@ async function main() {
       prompts = await loadPromptFile(promptFilePath);
       console.log(`Loaded prompts from config file: ${configFilePath}`);
     } catch (error) {
-      console.error(`Error loading configuration or prompt file: ${error.message}`);
+      console.error(`Error loading configuration or prompt file: ${getErrorMessage(error)}`);
       process.exit(1);
     }
   } else {
-    // デフォルトプロンプトのロードはタスク4.5で実装
-    console.warn('No config file specified. Default prompts will be used (once implemented in task 4.5).');
-    // 仮のプロンプトを設定 (後で削除)
-    prompts = {
-      format_version: '1.0',
-      prompts: [
-        { id: 'thought_improver_agent_default', description: 'Default Thinker/Improver', content: 'Default Thinker/Improver Prompt' },
-        { id: 'reviewer_agent_default', description: 'Default Reviewer', content: 'Default Reviewer Prompt' },
-        { id: 'summarizer_agent_default', description: 'Default Summarizer', content: 'Default Summarizer Prompt' },
-      ],
-    };
+    // デフォルトプロンプトのロード
+    const defaultPromptFilePath = path.resolve(process.cwd(), 'prompts', 'default_prompts.json');
+    try {
+      prompts = await loadPromptFile(defaultPromptFilePath);
+      console.log(`No config file specified. Loaded default prompts from: ${defaultPromptFilePath}`);
+    } catch (error) {
+      console.error(`Error loading default prompt file: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
   }
 
   try {
@@ -58,7 +57,7 @@ async function main() {
     console.log('\n--- Final Consultation Result ---');
     console.log(result);
   } catch (error) {
-    console.error('An error occurred during consultation:', error);
+    console.error('An error occurred during consultation:', getErrorMessage(error));
   }
 }
 
