@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node dist/index.js",
+    "build": "tsc",
     "single-eval": "ts-node src/singleAgentEval.ts",
     "coop-eval": "ts-node src/cooperativeAgentEval.ts",
     "test": "jest"
