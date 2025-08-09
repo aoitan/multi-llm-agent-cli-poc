@@ -39,3 +39,6 @@ doc/blind_evaluation/
 # Talk Documents
 doc/design_talk/
 doc/mvp_talk/
+
+# Evaluation Outputs
+eval/

@@ -1,8 +1,8 @@
 import os
 import shutil
 
-OUTPUT_DIR = "doc/blind_evaluation/outputs/"
-RECORDS_DIR = "doc/blind_evaluation/records/"
+OUTPUT_DIR = "eval/model_comparison/outputs/"
+RECORDS_DIR = "eval/model_comparison/records/"
 
 def prepare_evaluation():
     print("--- 出力ディレクトリをクリーンアップ中 ---")

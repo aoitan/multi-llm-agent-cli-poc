@@ -5,17 +5,18 @@ import subprocess
 from datetime import datetime
 from string import Template
 
-def run_llm_consultation(user_prompt: str, model1: str, model2: str, prompt_file_path: str):
+def run_llm_consultation(user_prompt: str, model1: str, model2: str, config_file_path: str = None):
     """Runs the LLM consultation and returns the final summary and discussion log."""
     command = [
         "node",
-        "dist/index.js", # Assuming dist/index.js is the entry point for conductConsultation
-        user_prompt,
+        "dist/index.js",
+        "--user-prompt", user_prompt,
         model1,
         model2,
-        "--config", prompt_file_path # Pass the prompt file path as a config
     ]
-    print(f"Running command: {" ".join(command)}")
+    if config_file_path:
+        command.extend(["--config", config_file_path])
+    print(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
@@ -107,7 +108,7 @@ def main():
 
         # Base Prompt 実行
         print("Running with Base Prompt...")
-        base_summary, base_log = run_llm_consultation(args.user_prompt, "llama3:8b", "llama3:8b", base_prompt_file)
+        base_summary, base_log = run_llm_consultation(args.user_prompt, "llama3:8b", "llama3:8b", "config/ab_test_config.json")
         with open(os.path.join(output_dir, f"base_output_{i+1}.md"), 'w', encoding='utf-8') as f:
             f.write(base_summary)
         with open(os.path.join(output_dir, f"base_log_{i+1}.json"), 'w', encoding='utf-8') as f:
@@ -115,7 +116,7 @@ def main():
 
         # Experimental Prompt 実行
         print("Running with Experimental Prompt...")
-        exp_summary, exp_log = run_llm_consultation(args.user_prompt, "llama3:8b", "llama3:8b", experimental_prompt_file)
+        exp_summary, exp_log = run_llm_consultation(args.user_prompt, "llama3:8b", "llama3:8b", "config/ab_test_config.json")
         with open(os.path.join(output_dir, f"exp_output_{i+1}.md"), 'w', encoding='utf-8') as f:
             f.write(exp_summary)
         with open(os.path.join(output_dir, f"exp_log_{i+1}.json"), 'w', encoding='utf-8') as f:
@@ -131,7 +132,7 @@ def main():
             answer_b=exp_summary
         )
 
-        eval_summary, eval_log = run_llm_consultation(evaluation_prompt_content, evaluation_models[0], evaluation_models[1], base_prompt_file) # 評価LLMはbase_prompt_fileを使用
+        eval_summary, eval_log = run_llm_consultation(evaluation_prompt_content, evaluation_models[0], evaluation_models[1], "config/ab_test_config.json")
         with open(os.path.join(output_dir, f"evaluation_{i+1}.md"), 'w', encoding='utf-8') as f:
             f.write(eval_summary)
         with open(os.path.join(output_dir, f"evaluation_log_{i+1}.json"), 'w', encoding='utf-8') as f:

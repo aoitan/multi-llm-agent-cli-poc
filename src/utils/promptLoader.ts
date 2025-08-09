@@ -29,7 +29,7 @@ export async function loadPromptFile(filePath: string): Promise<PromptFileConten
     }
 
     // ファイルの読み込み
-    const fileContent = await fs.promises.readFile(filePath, 'utf8');
+    const fileContent = fs.readFileSync(filePath, 'utf8');
 
     // JSONパース
     let parsedContent: any;

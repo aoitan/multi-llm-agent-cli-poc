@@ -86,7 +86,7 @@ export async function conductConsultation(
     reviewerSystemPrompt
   );
 
-  console.log('--- Consultation Start ---');
+  
 
   // Add initial user prompt to full history
   fullConversationHistory.push({ role: 'user', content: `ユーザープロンプト: ${userPrompt}` });
@@ -95,12 +95,12 @@ export async function conductConsultation(
   let lastReviewerResponse = '';
 
   // --- Initial Turn: Thinker (思考者) ---
-  console.log(`\n--- ターン 1 (思考者) ---`);
+  
   const thinkerInitialPromptTemplate = getPromptById(prompts.prompts, 'THINKER_INITIAL_PROMPT_TEMPLATE')?.content;
   if (!thinkerInitialPromptTemplate) {
     throw new Error('THINKER_INITIAL_PROMPT_TEMPLATE not found in the provided prompt file.');
   }
-  const thinkerInitialPrompt = fillTemplate(thinkerInitialPromptTemplate, { userPrompt });
+  const thinkerInitialPrompt = fillTemplate(thinkerInitialPromptTemplate, { userPrompt: userPrompt });
   lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(thinkerInitialPrompt, (content) => {
     process.stdout.write(content);
   });
@@ -115,7 +115,7 @@ export async function conductConsultation(
 
   // --- Main Cycles (Reviewer -> Improver) ---
   for (let cycle = 0; cycle < cycles; cycle++) {
-    console.log(`\n--- サイクル ${cycle + 1} (レビューと改善) ---`);
+    
 
     // Turn for Reviewer (批判的レビュアー)
     const reviewerPromptTemplate = getPromptById(prompts.prompts, 'REVIEWER_PROMPT_TEMPLATE')?.content;
@@ -123,10 +123,10 @@ export async function conductConsultation(
       throw new Error('REVIEWER_PROMPT_TEMPLATE not found in the provided prompt file.');
     }
     const reviewerPrompt = fillTemplate(reviewerPromptTemplate, {
-      userPrompt,
+      userPrompt: userPrompt,
       lastThinkerImproverResponse,
     });
-    console.log(`Agent 2 (${reviewerAgent.getModel()}) thinking... (役割: 批判的レビュアー)`);
+    
     lastReviewerResponse = await reviewerAgent.sendMessage(reviewerPrompt, (content) => {
       process.stdout.write(content);
     });
@@ -146,11 +146,11 @@ export async function conductConsultation(
       throw new Error('IMPROVER_PROMPT_TEMPLATE not found in the provided prompt file.');
     }
     const improverPrompt = fillTemplate(improverPromptTemplate, {
-      userPrompt,
+      userPrompt: userPrompt,
       lastReviewerResponse,
       lastThinkerImproverResponse,
     });
-    console.log(`Agent 1 (${thinkerImproverAgent.getModel()}) thinking... (役割: 指摘改善者)`);
+    
     lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(improverPrompt, (content) => {
       process.stdout.write(content);
     });
@@ -164,10 +164,10 @@ export async function conductConsultation(
     fullConversationHistory.push({ role: 'assistant', content: `Agent 1 (${thinkerImproverAgent.getModel()}): ${lastThinkerImproverResponse}` });
   }
 
-  console.log('--- Consultation End ---');
+  
 
   // Final summarization
-  console.log('--- 最終要約の生成 ---');
+  
   const summarizerSystemPrompt = getPromptById(prompts.prompts, 'SUMMARIZER_SYSTEM_PROMPT')?.content;
   const finalReportTemplate = getPromptById(prompts.prompts, 'FINAL_REPORT_TEMPLATE')?.content;
 
@@ -176,7 +176,7 @@ export async function conductConsultation(
   }
 
   const summaryPrompt = fillTemplate(finalReportTemplate, {
-    userPrompt,
+    userPrompt: userPrompt,
     finalAnswer: lastThinkerImproverResponse,
   });
 
@@ -231,11 +231,11 @@ export async function runEnsemble(
   return ensembleResponses;
 }
 
-function fillTemplate(template: string, variables: { [key: string]: string }): string {
+export function fillTemplate(template: string, variables: { [key: string]: string }): string {
   let result = template;
   for (const key in variables) {
     if (Object.prototype.hasOwnProperty.call(variables, key)) {
-      const placeholder = `\${${key}}`;
+      const placeholder = `\\$\\{${key}\\}`;
       result = result.replace(new RegExp(placeholder, 'g'), variables[key]);
     }
   }

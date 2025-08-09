@@ -4,8 +4,8 @@ import json
 import random
 from prompts_config import SCENARIOS
 
-OUTPUT_DIR = "doc/blind_evaluation/outputs/"
-RECORDS_DIR = "doc/blind_evaluation/records/"
+OUTPUT_DIR = "eval/model_comparison/outputs/"
+RECORDS_DIR = "eval/model_comparison/records/"
 MAPPING_FILE = os.path.join(RECORDS_DIR, "mapping.json")
 
 # Scenario prompts (from prompts_config.py)
