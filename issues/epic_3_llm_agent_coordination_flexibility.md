@@ -7,4 +7,4 @@ LLMエージェント間の協調プロセスを、コードの変更なしに�
 ## 関連ストーリー
 
 *   [ストーリー 1: エージェントロール定義の外部化](story_3_1_externalize_agent_role_definitions.md)
-*   [ストーリー 2: 対話フローの外部化](story_2_externalize_conversation_flow.md)
+*   [ストーリー 2: 対話フローの外部化](story_3_2_externalize_conversation_flow.md)
