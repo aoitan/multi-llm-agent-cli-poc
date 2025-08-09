@@ -6,5 +6,5 @@ CLIアプリケーションの出力形式を柔軟に制御し、人間可読�
 
 ## 関連ストーリー
 
-*   [ストーリー 1: デフォルト出力モードの改善](story_1_improve_default_output_mode.md)
+*   [ストーリー 1: デフォルト出力モードの改善](story_2_1_improve_default_output_mode.md)
 *   [ストーリー 2: JSON出力モードの実装](story_2_implement_json_output_mode.md)
