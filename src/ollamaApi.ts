@@ -17,6 +17,7 @@ export async function chatWithOllama(
   onContent: (content: string) => void,
   onDone: () => void,
   onError: (error: Error) => void,
+  temperature?: number, // Add temperature parameter
 ): Promise<void> {
   const baseUrl = (process.env.APP_OLLAMA_URL || 'http://localhost:11434').trim().replace(/\/$/, '');
   const chatEndpoint = `${baseUrl}/api/chat`;
@@ -24,16 +25,22 @@ export async function chatWithOllama(
   const startTime = process.hrtime.bigint();
 
   try {
+    const requestBody: any = {
+      model: model,
+      messages: messages,
+      stream: true,
+    };
+
+    if (temperature !== undefined) {
+      requestBody.options = { temperature: temperature };
+    }
+
     const response = await fetch(chatEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        stream: true,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
