@@ -2,8 +2,17 @@ import os
 import json
 import re
 
-OUTPUT_DIR = "doc/blind_evaluation/outputs/"
-RECORDS_DIR = "doc/blind_evaluation/records/"
+def get_base_dir():
+    try:
+        with open("eval/model_comparison/current_run_base_dir.txt", "r") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        print("Error: current_run_base_dir.txt not found. Run prepare_evaluation.py first.")
+        exit(1)
+
+BASE_DIR = get_base_dir()
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
+RECORDS_DIR = os.path.join(BASE_DIR, "records")
 MAPPING_FILE = os.path.join(RECORDS_DIR, "mapping.json")
 
 def generate_mapping():
