@@ -4,8 +4,17 @@ import json
 import random
 from prompts_config import SCENARIOS
 
-OUTPUT_DIR = "eval/model_comparison/outputs/"
-RECORDS_DIR = "eval/model_comparison/records/"
+def get_base_dir():
+    try:
+        with open("eval/model_comparison/current_run_base_dir.txt", "r") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        print("Error: current_run_base_dir.txt not found. Run prepare_evaluation.py first.")
+        exit(1)
+
+BASE_DIR = get_base_dir()
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
+RECORDS_DIR = os.path.join(BASE_DIR, "records")
 MAPPING_FILE = os.path.join(RECORDS_DIR, "mapping.json")
 
 # Scenario prompts (from prompts_config.py)
