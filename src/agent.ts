@@ -17,13 +17,11 @@ class Agent {
   private model: string;
   private systemPrompt: string;
   private messages: Message[];
-  private temperature?: number; // Add temperature property
 
-  constructor(model: string, systemPrompt: string, temperature?: number) {
+  constructor(model: string, systemPrompt: string) {
     this.model = model;
     this.systemPrompt = systemPrompt;
     this.messages = [{ role: 'system', content: systemPrompt }];
-    this.temperature = temperature; // Store temperature
   }
 
   public async sendMessage(userMessage: string, onContent: (content: string) => void): Promise<string> {
@@ -43,8 +41,7 @@ class Agent {
         },
         (error) => {
           reject(error);
-        },
-        this.temperature // Pass temperature to chatWithOllama
+        }
       );
     });
 
@@ -82,13 +79,11 @@ export async function conductConsultation(
 
   const thinkerImproverAgent = new Agent(
     model1,
-    thinkerImproverSystemPrompt,
-    0.8 // Temperature for Thinker/Improver
+    thinkerImproverSystemPrompt
   );
   const reviewerAgent = new Agent(
     model2,
-    reviewerSystemPrompt,
-    0.2 // Temperature for Reviewer
+    reviewerSystemPrompt
   );
 
   
