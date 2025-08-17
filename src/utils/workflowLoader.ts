@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface InputVariable {
-  [key: string]: string; // 例: "userPrompt": "user_input", "feedback": "review_feedback"
+  [key: string]: string | string[];
 }
 
 export interface AgentInteractionStep {

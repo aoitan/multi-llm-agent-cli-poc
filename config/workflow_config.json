@@ -58,9 +58,9 @@
           "id": "summarize_answers_step",
           "type": "agent_interaction",
           "agent_id": "summarizer_agent",
-          "prompt_id": "SUMMARIZER_SYSTEM_PROMPT",
+          "prompt_id": "SUMMARIZER_PROMPT_TEMPLATE",
           "input_variables": {
-            "answers": "answer_1\n\nanswer_2" 
+            "answers": ["answer_1", "answer_2"]
           },
           "output_variable": "final_summary",
           "next_step": "end"

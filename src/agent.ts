@@ -182,9 +182,20 @@ function resolveInputVariables(inputVariables: InputVariable, context: { [key: s
   for (const key in inputVariables) {
     if (Object.prototype.hasOwnProperty.call(inputVariables, key)) {
       const source = inputVariables[key];
-      if (source === "user_input") {
-        // "user_input" is a special keyword for the initial input
-        // It should be present in the initial context
+      if (Array.isArray(source)) {
+        resolved[key] = source.map(s => {
+          if (s === "user_input") {
+            if (!context["user_input"]) {
+              throw new Error(`Input variable '${key}' expects 'user_input' but it's not provided in initial context.`);
+            }
+            return context["user_input"];
+          } else if (context[s] !== undefined) {
+            return context[s];
+          } else {
+            throw new Error(`Input variable '${key}' source '${s}' not found in context.`);
+          }
+        }).join('\n\n');
+      } else if (source === "user_input") {
         if (!context["user_input"]) {
           throw new Error(`Input variable '${key}' expects 'user_input' but it's not provided in initial context.`);
         }

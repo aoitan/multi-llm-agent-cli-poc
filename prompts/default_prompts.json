@@ -40,6 +40,11 @@
       "id": "answer_question_prompt",
       "description": "質問応答エージェントのプロンプトテンプレート",
       "content": "以下の質問に答えてください: {{question}}"
+    },
+    {
+      "id": "SUMMARIZER_PROMPT_TEMPLATE",
+      "description": "要約者エージェントのプロンプトテンプレート",
+      "content": "以下の情報を要約してください: {{answers}}"
     }
   ],
   "agent_roles": {
