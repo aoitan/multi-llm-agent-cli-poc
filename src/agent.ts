@@ -1,5 +1,5 @@
 import { chatWithOllama } from './ollamaApi';
-import { PromptFileContent, getPromptById } from './utils/promptLoader';
+import { PromptFileContent, getPromptById, getAgentRoleById, AgentRoleDefinition } from './utils/promptLoader';
 
 interface Message {
   role: string;
@@ -62,149 +62,145 @@ class Agent {
   }
 }
 
-export async function conductConsultation(
-  userPrompt: string,
-  model1: string,
-  model2: string,
-  prompts: PromptFileContent,
-  cycles: number = 2
-): Promise<{ finalSummary: string; discussionLog: DiscussionTurn[] }> {
-  let fullConversationHistory: Message[] = [];
-  const discussionLog: DiscussionTurn[] = []; // To store structured discussion
 
-  // Define agent roles and create agents
-  const thinkerImproverSystemPrompt = getPromptById(prompts.prompts, 'THINKER_IMPROVER_SYSTEM_PROMPT')?.content;
-  const reviewerSystemPrompt = getPromptById(prompts.prompts, 'REVIEWER_SYSTEM_PROMPT')?.content;
 
-  if (!thinkerImproverSystemPrompt || !reviewerSystemPrompt) {
-    throw new Error('Required system prompts not found in the provided prompt file.');
-  }
+import { WorkflowDefinition, WorkflowStep, AgentInteractionStep, MultiAgentInteractionStep, InputVariable } from './utils/workflowLoader';
 
-  const thinkerImproverAgent = new Agent(
-    model1,
-    thinkerImproverSystemPrompt,
-    0.8 // Temperature for Thinker/Improver
-  );
-  const reviewerAgent = new Agent(
-    model2,
-    reviewerSystemPrompt,
-    0.2 // Temperature for Reviewer
-  );
+export async function orchestrateWorkflow(
+  workflow: WorkflowDefinition,
+  initialInput: { [key: string]: string },
+  prompts: PromptFileContent
+): Promise<{ finalOutput: { [key: string]: string }; discussionLog: DiscussionTurn[] }> {
+  const discussionLog: DiscussionTurn[] = [];
+  const context: { [key: string]: string } = { ...initialInput }; // ステップ間で共有されるコンテキスト
 
-  
+  let currentStepId: string | undefined = workflow.initial_step;
+  let stepCounter = 0;
 
-  // Add initial user prompt to full history
-  fullConversationHistory.push({ role: 'user', content: `ユーザープロンプト: ${userPrompt}` });
+  while (currentStepId && currentStepId !== "end") {
+    stepCounter++;
+    const currentStep = workflow.steps.find(step => step.id === currentStepId);
 
-  let lastThinkerImproverResponse = '';
-  let lastReviewerResponse = '';
-
-  // --- Initial Turn: Thinker (思考者) ---
-  
-  const thinkerInitialPromptTemplate = getPromptById(prompts.prompts, 'THINKER_INITIAL_PROMPT_TEMPLATE')?.content;
-  if (!thinkerInitialPromptTemplate) {
-    throw new Error('THINKER_INITIAL_PROMPT_TEMPLATE not found in the provided prompt file.');
-  }
-  const thinkerInitialPrompt = fillTemplate(thinkerInitialPromptTemplate, { userPrompt: userPrompt });
-  lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(thinkerInitialPrompt, (content) => {
-    process.stdout.write(content);
-  });
-  process.stdout.write('\n');
-  discussionLog.push({
-    turn: "ターン 1 (思考者)",
-    agent_role: "思考者",
-    prompt_sent: thinkerInitialPrompt,
-    response_received: lastThinkerImproverResponse,
-  });
-  fullConversationHistory.push({ role: 'assistant', content: `Agent 1 (${thinkerImproverAgent.getModel()}): ${lastThinkerImproverResponse}` });
-
-  // --- Main Cycles (Reviewer -> Improver) ---
-  for (let cycle = 0; cycle < cycles; cycle++) {
-    
-
-    // Turn for Reviewer (批判的レビュアー)
-    const reviewerPromptTemplate = getPromptById(prompts.prompts, 'REVIEWER_PROMPT_TEMPLATE')?.content;
-    if (!reviewerPromptTemplate) {
-      throw new Error('REVIEWER_PROMPT_TEMPLATE not found in the provided prompt file.');
+    if (!currentStep) {
+      throw new Error(`Workflow error: Step with ID '${currentStepId}' not found.`);
     }
-    const reviewerPrompt = fillTemplate(reviewerPromptTemplate, {
-      userPrompt: userPrompt,
-      lastThinkerImproverResponse,
-    });
-    
-    lastReviewerResponse = await reviewerAgent.sendMessage(reviewerPrompt, (content) => {
-      process.stdout.write(content);
-    });
-    process.stdout.write('\n');
-    discussionLog.push({
-      turn: `サイクル ${cycle + 1} (レビュアー)`,
-      agent_role: "批判的レビュアー",
-      prompt_sent: reviewerPrompt,
-      response_received: lastReviewerResponse,
-    });
-    fullConversationHistory.push({ role: 'assistant', content: `Agent 2 (${reviewerAgent.getModel()}): ${lastReviewerResponse}` });
-    
 
-    // Turn for Thinker/Improver (指摘改善者)
-    const improverPromptTemplate = getPromptById(prompts.prompts, 'IMPROVER_PROMPT_TEMPLATE')?.content;
-    if (!improverPromptTemplate) {
-      throw new Error('IMPROVER_PROMPT_TEMPLATE not found in the provided prompt file.');
+    process.stdout.write(`\n--- Step ${stepCounter}: ${currentStep.id} (${currentStep.type}) ---\n`);
+
+    if (currentStep.type === "agent_interaction") {
+      const step = currentStep as AgentInteractionStep;
+      const agentRole = getAgentRoleById(prompts.agent_roles, step.agent_id);
+      if (!agentRole) {
+        throw new Error(`Agent role '${step.agent_id}' not found.`);
+      }
+      const systemPromptContent = getPromptById(prompts.prompts, agentRole.system_prompt_id)?.content;
+      if (!systemPromptContent) {
+        throw new Error(`System prompt '${agentRole.system_prompt_id}' not found for agent '${step.agent_id}'.`);
+      }
+      const agent = new Agent(agentRole.model, systemPromptContent, agentRole.temperature);
+
+      const promptTemplate = getPromptById(prompts.prompts, step.prompt_id)?.content;
+      if (!promptTemplate) {
+        throw new Error(`Prompt template '${step.prompt_id}' not found.`);
+      }
+
+      const filledPrompt = fillTemplate(promptTemplate, resolveInputVariables(step.input_variables, context));
+
+      process.stdout.write(`Agent (${step.agent_id}) prompt:\n${filledPrompt}\n`);
+      const response = await agent.sendMessage(filledPrompt, (content) => {
+        process.stdout.write(content);
+      });
+      process.stdout.write('\n');
+
+      if (step.output_variable) {
+        context[step.output_variable] = response;
+      }
+
+      discussionLog.push({
+        turn: `Step ${stepCounter} (${step.id})`,
+        agent_role: agentRole.description,
+        prompt_sent: filledPrompt,
+        response_received: response,
+      });
+
+      currentStepId = step.next_step;
+
+    } else if (currentStep.type === "multi_agent_interaction") {
+      const step = currentStep as MultiAgentInteractionStep;
+      const parallelResponses: { [key: string]: string } = {};
+
+      for (const branch of step.agents_to_run) {
+        process.stdout.write(`\n--- Running parallel branch for agent: ${branch.agent_id} ---\n`);
+        const agentRole = getAgentRoleById(prompts.agent_roles, branch.agent_id);
+        if (!agentRole) {
+          throw new Error(`Agent role '${branch.agent_id}' not found.`);
+        }
+        const systemPromptContent = getPromptById(prompts.prompts, agentRole.system_prompt_id)?.content;
+        if (!systemPromptContent) {
+          throw new Error(`System prompt '${agentRole.system_prompt_id}' not found for agent '${branch.agent_id}'.`);
+        }
+        const agent = new Agent(agentRole.model, systemPromptContent, agentRole.temperature);
+
+        const promptTemplate = getPromptById(prompts.prompts, branch.prompt_id)?.content;
+        if (!promptTemplate) {
+          throw new Error(`Prompt template '${branch.prompt_id}' not found.`);
+        }
+
+        const filledPrompt = fillTemplate(promptTemplate, resolveInputVariables(branch.input_variables, context));
+
+        process.stdout.write(`Agent (${branch.agent_id}) prompt:\n${filledPrompt}\n`);
+        const response = await agent.sendMessage(filledPrompt, (content) => {
+          process.stdout.write(content);
+        });
+        process.stdout.write('\n');
+
+        if (branch.output_variable) {
+          parallelResponses[branch.output_variable] = response;
+        }
+
+        discussionLog.push({
+          turn: `Step ${stepCounter} (Parallel: ${branch.agent_id})`,
+          agent_role: agentRole.description,
+          prompt_sent: filledPrompt,
+          response_received: response,
+        });
+      }
+      // Collect all parallel responses into context
+      Object.assign(context, parallelResponses);
+      currentStepId = step.next_step;
+
+    } else {
+      throw new Error(`Unknown step type: ${(currentStep as WorkflowStep).type}`);
     }
-    const improverPrompt = fillTemplate(improverPromptTemplate, {
-      userPrompt: userPrompt,
-      lastReviewerResponse,
-      lastThinkerImproverResponse,
-    });
-    
-    lastThinkerImproverResponse = await thinkerImproverAgent.sendMessage(improverPrompt, (content) => {
-      process.stdout.write(content);
-    });
-    process.stdout.write('\n');
-    discussionLog.push({
-      turn: `サイクル ${cycle + 1} (改善者)`,
-      agent_role: "指摘改善者",
-      prompt_sent: improverPrompt,
-      response_received: lastThinkerImproverResponse,
-    });
-    fullConversationHistory.push({ role: 'assistant', content: `Agent 1 (${thinkerImproverAgent.getModel()}): ${lastThinkerImproverResponse}` });
   }
 
-  
+  return { finalOutput: context, discussionLog };
+}
 
-  // Final summarization
-  
-  const summarizerSystemPrompt = getPromptById(prompts.prompts, 'SUMMARIZER_SYSTEM_PROMPT')?.content;
-  const finalReportTemplate = getPromptById(prompts.prompts, 'FINAL_REPORT_TEMPLATE')?.content;
-
-  if (!summarizerSystemPrompt || !finalReportTemplate) {
-    throw new Error('Required summarizer prompts not found in the provided prompt file.');
+function resolveInputVariables(inputVariables: InputVariable, context: { [key: string]: string }): { [key: string]: string } {
+  const resolved: { [key: string]: string } = {};
+  for (const key in inputVariables) {
+    if (Object.prototype.hasOwnProperty.call(inputVariables, key)) {
+      const source = inputVariables[key];
+      if (source === "user_input") {
+        // "user_input" is a special keyword for the initial input
+        // It should be present in the initial context
+        if (!context["user_input"]) {
+          throw new Error(`Input variable '${key}' expects 'user_input' but it's not provided in initial context.`);
+        }
+        resolved[key] = context["user_input"];
+      } else if (context[source] !== undefined) {
+        resolved[key] = context[source];
+      } else {
+        throw new Error(`Input variable '${key}' source '${source}' not found in context.`);
+      }
+    }
   }
-
-  const summaryPrompt = fillTemplate(finalReportTemplate, {
-    userPrompt: userPrompt,
-    finalAnswer: lastThinkerImproverResponse,
-  });
-
-  const summarizerAgent = new Agent(
-    model1,
-    summarizerSystemPrompt
-  );
-
-  const finalSummary = await summarizerAgent.sendMessage(summaryPrompt, (content) => {
-    process.stdout.write(content);
-  });
-  process.stdout.write('\n');
-  discussionLog.push({
-    turn: "最終要約",
-    agent_role: "要約者",
-    prompt_sent: summaryPrompt,
-    response_received: finalSummary,
-  });
-
-  return { finalSummary, discussionLog };
+  return resolved;
 }
 
 export async function runEnsemble(
+
   prompt: string,
   models: string[]
 ): Promise<string[]> {

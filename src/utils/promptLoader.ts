@@ -9,9 +9,18 @@ export interface PromptDefinition {
 }
 
 // プロンプトファイル全体の型
+export interface AgentRoleDefinition {
+  system_prompt_id: string;
+  description: string;
+  model: string;
+  temperature?: number;
+}
+
+// プロンプトファイル全体の型
 export interface PromptFileContent {
   format_version: string;
   prompts: PromptDefinition[];
+  agent_roles?: { [key: string]: AgentRoleDefinition }; // agent_rolesを追加
 }
 
 /**
@@ -74,4 +83,21 @@ export async function loadPromptFile(filePath: string): Promise<PromptFileConten
  */
 export function getPromptById(prompts: PromptDefinition[], id: string): PromptDefinition | undefined {
   return prompts.find(prompt => prompt.id === id);
+}
+
+/**
+ * エージェントロールIDに基づいて特定のエージェントロール定義を検索する。
+ *
+ * @param agentRoles エージェントロール定義のマップ
+ * @param id 検索するエージェントロールのID
+ * @returns AgentRoleDefinition | undefined 見つかったエージェントロール定義、またはundefined
+ */
+export function getAgentRoleById(
+  agentRoles: { [key: string]: AgentRoleDefinition } | undefined,
+  id: string
+): AgentRoleDefinition | undefined {
+  if (!agentRoles) {
+    return undefined;
+  }
+  return agentRoles[id];
 }
