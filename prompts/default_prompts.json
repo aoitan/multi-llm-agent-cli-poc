@@ -35,6 +35,59 @@
       "id": "FINAL_REPORT_TEMPLATE",
       "description": "最終レポートのテンプレート",
       "content": "以下のレポートテンプレートの各セクションを、提供された「最終改善案」の内容に基づいて埋めてください。レポートとして自然な文章になるように、あなた自身の言葉で記述し直してください。\n\n---\n**レポートテンプレート**\n\n#（ここにレポートのタイトルを記述）\n\n## 1. はじめに\n（ここに導入・目的を記述）\n\n## 2. 課題の分析\n（ここに議論された課題を記述）\n\n## 3. 解決策の提案\n（ここに議論された解決策を記述）\n\n## 4. 結論\n（ここに結論を記述）\n---\n\n**情報ソース（この内容を使って上記テンプレートを埋めること）**\n\nユーザープロンプト: ${userPrompt}\n最終改善案: ${finalAnswer}"
+    },
+    {
+      "id": "answer_question_prompt",
+      "description": "質問応答エージェントのプロンプトテンプレート",
+      "content": "以下の質問に答えてください: {{question}}"
+    },
+    {
+      "id": "SUMMARIZER_PROMPT_TEMPLATE",
+      "description": "要約者エージェントのプロンプトテンプレート",
+      "content": "以下の情報を要約してください: {{answers}}"
     }
-  ]
+  ],
+  "agent_roles": {
+    "thinker_improver_agent": {
+      "system_prompt_id": "THINKER_IMPROVER_SYSTEM_PROMPT",
+      "description": "思考者・指摘改善者エージェント",
+      "model": "ollama:llama3"
+    },
+    "reviewer_agent": {
+      "system_prompt_id": "REVIEWER_SYSTEM_PROMPT",
+      "description": "批判的レビュアーエージェント",
+      "model": "ollama:llama3"
+    },
+    "summarizer_agent": {
+      "system_prompt_id": "SUMMARIZER_SYSTEM_PROMPT",
+      "description": "要約者エージェント",
+      "model": "ollama:llama3"
+    },
+    "qa_agent_1": {
+      "system_prompt_id": "SUMMARIZER_SYSTEM_PROMPT",
+      "description": "質問応答エージェント1",
+      "model": "ollama:llama3"
+    },
+    "qa_agent_2": {
+      "system_prompt_id": "SUMMARIZER_SYSTEM_PROMPT",
+      "description": "質問応答エージェント2",
+      "model": "ollama:llama3"
+    }
+  }
+    "thinker_improver_agent": {
+      "system_prompt_id": "THINKER_IMPROVER_SYSTEM_PROMPT",
+      "description": "思考者・指摘改善者エージェント",
+      "model": "ollama:llama3"
+    },
+    "reviewer_agent": {
+      "system_prompt_id": "REVIEWER_SYSTEM_PROMPT",
+      "description": "批判的レビュアーエージェント",
+      "model": "ollama:llama3"
+    },
+    "summarizer_agent": {
+      "system_prompt_id": "SUMMARIZER_SYSTEM_PROMPT",
+      "description": "要約者エージェント",
+      "model": "ollama:llama3"
+    }
+  }
 }

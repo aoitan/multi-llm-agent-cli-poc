@@ -1,5 +1,6 @@
-import { conductConsultation } from './agent';
+import { orchestrateWorkflow } from './agent';
 import { loadPromptFile, PromptFileContent } from './utils/promptLoader';
+import { loadWorkflowFile, WorkflowConfigFileContent, WorkflowDefinition } from './utils/workflowLoader';
 import { loadConfigFile, ConfigContent } from './utils/configLoader';
 import { getErrorMessage } from './utils/errorUtils';
 import yargs from 'yargs';
@@ -17,50 +18,51 @@ async function main() {
       type: 'string',
       description: 'The user prompt for the LLM.',
     })
+    .option('workflow', {
+      alias: 'w',
+      type: 'string',
+      description: 'ID of the workflow to execute from workflow_config.json',
+      default: 'code_review_and_refactor',
+    })
     .parse();
 
-  const userPrompt = argv['user-prompt'] as string; // Get user prompt from option
-  const model1 = (argv._[0] as string) || 'llama3:8b'; // Default to llama3:8b if not provided
-  const model2 = (argv._[1] as string) || 'llama3:8b'; // Default to llama3:8b if not provided
+  const userPrompt = argv['user-prompt'] as string;
+  const model1 = (argv._[0] as string) || 'llama3:8b';
+  const model2 = (argv._[1] as string) || 'llama3:8b';
+  const workflowId = argv['workflow'] as string;
 
   if (!userPrompt) {
-    console.error('Usage: npm start "<your_prompt>" [model1] [model2] [--config <config_file_path>]');
+    console.error('Usage: npm start --user-prompt "<your_prompt>" [--workflow <workflow_id>]');
     process.exit(1);
   }
 
-  
-  
-
   let prompts: PromptFileContent;
-  if (argv.config) {
-    const configFilePath = path.resolve(process.cwd(), argv.config);
-    try {
-      const config: ConfigContent = await loadConfigFile(configFilePath);
-      const promptFilePath = path.resolve(process.cwd(), config.prompt_file_path);
-      prompts = await loadPromptFile(promptFilePath);
-      
-    } catch (error) {
-      console.error(`Error loading configuration or prompt file: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  } else {
-    // デフォルトプロンプトのロード
+  let workflows: WorkflowConfigFileContent;
+
+  try {
     const defaultPromptFilePath = path.resolve(process.cwd(), 'prompts', 'default_prompts.json');
-    try {
-      prompts = await loadPromptFile(defaultPromptFilePath);
-      
-    } catch (error) {
-      console.error(`Error loading default prompt file: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
+    prompts = await loadPromptFile(defaultPromptFilePath);
+
+    const workflowFilePath = path.resolve(process.cwd(), 'config', 'workflow_config.json');
+    workflows = await loadWorkflowFile(workflowFilePath);
+
+  } catch (error) {
+    console.error(`Error loading configuration or prompt file: ${getErrorMessage(error)}`);
+    process.exit(1);
+  }
+
+  const selectedWorkflow = workflows.workflows[workflowId];
+  if (!selectedWorkflow) {
+    console.error(`Workflow with ID '${workflowId}' not found in workflow_config.json.`);
+    process.exit(1);
   }
 
   try {
-    // conductConsultation のシグネチャ変更が必要
-    const result = await conductConsultation(userPrompt, model1, model2, prompts);
-    console.log(JSON.stringify(result, null, 2));
+    const initialInput = { "user_input": userPrompt };
+    const result = await orchestrateWorkflow(selectedWorkflow, initialInput, prompts);
+    console.log(JSON.stringify(result.finalOutput, null, 2));
   } catch (error) {
-    console.error('An error occurred during consultation:', getErrorMessage(error));
+    console.error('An error occurred during workflow execution:', getErrorMessage(error));
   }
 }
 

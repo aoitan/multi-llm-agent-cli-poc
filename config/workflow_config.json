@@ -1,0 +1,71 @@
+{
+  "workflows": {
+    "code_review_and_refactor": {
+      "description": "ユーザーからコードを受け取り、コードレビューエージェントがレビューし、そのフィードバックに基づいてリファクタリングエージェントがコードを修正します。",
+      "initial_step": "review_step",
+      "steps": [
+        {
+          "id": "review_step",
+          "type": "agent_interaction",
+          "agent_id": "reviewer_agent",
+          "prompt_id": "REVIEWER_PROMPT_TEMPLATE",
+          "input_variables": {
+            "userPrompt": "user_input",
+            "lastThinkerImproverResponse": "user_input"
+          },
+          "output_variable": "review_feedback",
+          "next_step": "improver_step"
+        },
+        {
+          "id": "improver_step",
+          "type": "agent_interaction",
+          "agent_id": "thinker_improver_agent",
+          "prompt_id": "IMPROVER_PROMPT_TEMPLATE",
+          "input_variables": {
+            "userPrompt": "user_input",
+            "lastReviewerResponse": "review_feedback",
+            "lastThinkerImproverResponse": "user_input"
+          },
+          "output_variable": "refactored_code",
+          "next_step": "end"
+        }
+      ]
+    },
+    "parallel_qa_and_summarize": {
+      "description": "複数のエージェントが独立して同じ質問に回答し、その回答を要約エージェントが統合します。",
+      "initial_step": "parallel_qa_step",
+      "steps": [
+        {
+          "id": "parallel_qa_step",
+          "type": "multi_agent_interaction",
+          "agents_to_run": [
+            {
+              "agent_id": "qa_agent_1",
+              "prompt_id": "answer_question_prompt",
+              "input_variables": { "question": "user_input" },
+              "output_variable": "answer_1"
+            },
+            {
+              "agent_id": "qa_agent_2",
+              "prompt_id": "answer_question_prompt",
+              "input_variables": { "question": "user_input" },
+              "output_variable": "answer_2"
+            }
+          ],
+          "next_step": "summarize_answers_step"
+        },
+        {
+          "id": "summarize_answers_step",
+          "type": "agent_interaction",
+          "agent_id": "summarizer_agent",
+          "prompt_id": "SUMMARIZER_PROMPT_TEMPLATE",
+          "input_variables": {
+            "answers": ["answer_1", "answer_2"]
+          },
+          "output_variable": "final_summary",
+          "next_step": "end"
+        }
+      ]
+    }
+  }
+}
