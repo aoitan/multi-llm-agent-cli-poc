@@ -69,7 +69,8 @@ import { WorkflowDefinition, WorkflowStep, AgentInteractionStep, MultiAgentInter
 export async function orchestrateWorkflow(
   workflow: WorkflowDefinition,
   initialInput: { [key: string]: string },
-  prompts: PromptFileContent
+  prompts: PromptFileContent,
+  jsonOutput: boolean
 ): Promise<{ finalOutput: { [key: string]: string }; discussionLog: DiscussionTurn[] }> {
   const discussionLog: DiscussionTurn[] = [];
   const context: { [key: string]: string } = { ...initialInput }; // ステップ間で共有されるコンテキスト
@@ -85,7 +86,11 @@ export async function orchestrateWorkflow(
       throw new Error(`Workflow error: Step with ID '${currentStepId}' not found.`);
     }
 
-    process.stdout.write(`\n--- Step ${stepCounter}: ${currentStep.id} (${currentStep.type}) ---\n`);
+    if (!jsonOutput) {
+      process.stdout.write(`
+## Step ${stepCounter}: ${currentStep.id} (${currentStep.type})
+`);
+    }
 
     if (currentStep.type === "agent_interaction") {
       const step = currentStep as AgentInteractionStep;
@@ -106,11 +111,29 @@ export async function orchestrateWorkflow(
 
       const filledPrompt = fillTemplate(promptTemplate, resolveInputVariables(step.input_variables, context));
 
-      process.stdout.write(`Agent (${step.agent_id}) prompt:\n${filledPrompt}\n`);
+      if (!jsonOutput) {
+        process.stdout.write(`Agent (${step.agent_id}) prompt:
+${filledPrompt}
+`);
+        process.stdout.write(`
+### LLM Response (${agentRole.model}):
+`);
+      }
       const response = await agent.sendMessage(filledPrompt, (content) => {
-        process.stdout.write(content);
+        if (!jsonOutput) {
+          process.stdout.write(content);
+        }
       });
-      process.stdout.write('\n');
+      if (!jsonOutput) {
+        process.stdout.write(`
+
+--- End of LLM Response (${agentRole.model}) ---
+`);
+        process.stdout.write(`Timestamp: ${new Date().toISOString()}
+`);
+        process.stdout.write('
+');
+      }
 
       if (step.output_variable) {
         context[step.output_variable] = response;
@@ -130,7 +153,11 @@ export async function orchestrateWorkflow(
       const parallelResponses: { [key: string]: string } = {};
 
       for (const branch of step.agents_to_run) {
-        process.stdout.write(`\n--- Running parallel branch for agent: ${branch.agent_id} ---\n`);
+        if (!jsonOutput) {
+          process.stdout.write(`
+## Running parallel branch for agent: ${branch.agent_id}
+`);
+        }
         const agentRole = getAgentRoleById(prompts.agent_roles, branch.agent_id);
         if (!agentRole) {
           throw new Error(`Agent role '${branch.agent_id}' not found.`);
@@ -148,11 +175,29 @@ export async function orchestrateWorkflow(
 
         const filledPrompt = fillTemplate(promptTemplate, resolveInputVariables(branch.input_variables, context));
 
-        process.stdout.write(`Agent (${branch.agent_id}) prompt:\n${filledPrompt}\n`);
+        if (!jsonOutput) {
+          process.stdout.write(`Agent (${branch.agent_id}) prompt:
+${filledPrompt}
+`);
+          process.stdout.write(`
+### LLM Response (${agentRole.model}):
+`);
+        }
         const response = await agent.sendMessage(filledPrompt, (content) => {
-          process.stdout.write(content);
+          if (!jsonOutput) {
+            process.stdout.write(content);
+          }
         });
-        process.stdout.write('\n');
+        if (!jsonOutput) {
+          process.stdout.write(`
+
+--- End of LLM Response (${agentRole.model}) ---
+`);
+          process.stdout.write(`Timestamp: ${new Date().toISOString()}
+`);
+          process.stdout.write('
+');
+        }
 
         if (branch.output_variable) {
           parallelResponses[branch.output_variable] = response;

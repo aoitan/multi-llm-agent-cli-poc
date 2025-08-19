@@ -10,6 +10,7 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, config_file
     command = [
         "node",
         "dist/index.js",
+        "--json", # Add --json argument
         "--user-prompt", user_prompt,
         model1,
         model2,
@@ -19,33 +20,17 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, config_file
     print(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        return data.get('finalOutput', ''), data.get('discussionLog', [])
     except subprocess.CalledProcessError as e:
         print(f"Error: Command '{' '.join(command)}' failed with exit code {e.returncode}")
         print(f"Stdout:\n{e.stdout}")
         print(f"Stderr:\n{e.stderr}")
         return e.stdout if e.stdout else "", []  # Return error output and empty log
-
-    # The output from index.js will contain console.logs and then the final JSON output
-    # We need to parse the JSON output from the end of the stdout
-    output_lines = result.stdout.strip().split('\n')
-    # Try to extract the last valid JSON object from the output (supporting multi-line JSON)
-    def extract_last_json(lines):
-        # Scan from the end, accumulate lines that could form a JSON object
-        for start in range(len(lines)):
-            candidate = '\n'.join(lines[start:])
-            try:
-                data = json.loads(candidate)
-                return data
-            except json.JSONDecodeError:
-                continue
-        return None
-
-    data = extract_last_json(output_lines)
-    if data is not None:
-        return data.get('finalSummary', ''), data.get('discussionLog', [])
-    else:
-        print("Warning: No valid JSON output found in stdout.")
-        return result.stdout, [] # Return raw stdout if no JSON is found
+    except json.JSONDecodeError as e:
+        print(f"Error: Could not decode JSON from stdout: {e}")
+        print(f"Stdout:\n{result.stdout}")
+        return result.stdout, [] # Return raw stdout if JSON decoding fails
 
 def main():
     parser = argparse.ArgumentParser(description='Run A/B test for LLM prompts.')

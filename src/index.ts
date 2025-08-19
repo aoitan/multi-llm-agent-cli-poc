@@ -24,12 +24,19 @@ async function main() {
       description: 'ID of the workflow to execute from workflow_config.json',
       default: 'code_review_and_refactor',
     })
+    .option('json', {
+      alias: 'j',
+      type: 'boolean',
+      description: 'Output results in JSON format',
+      default: false,
+    })
     .parse();
 
   const userPrompt = argv['user-prompt'] as string;
   const model1 = (argv._[0] as string) || 'llama3:8b';
   const model2 = (argv._[1] as string) || 'llama3:8b';
   const workflowId = argv['workflow'] as string;
+  const jsonOutput = argv['json'] as boolean;
 
   if (!userPrompt) {
     console.error('Usage: npm start --user-prompt "<your_prompt>" [--workflow <workflow_id>]');
@@ -59,8 +66,12 @@ async function main() {
 
   try {
     const initialInput = { "user_input": userPrompt };
-    const result = await orchestrateWorkflow(selectedWorkflow, initialInput, prompts);
-    console.log(JSON.stringify(result.finalOutput, null, 2));
+    const result = await orchestrateWorkflow(selectedWorkflow, initialInput, prompts, jsonOutput);
+    if (jsonOutput) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(JSON.stringify(result.finalOutput, null, 2));
+    }
   } catch (error) {
     console.error('An error occurred during workflow execution:', getErrorMessage(error));
   }
