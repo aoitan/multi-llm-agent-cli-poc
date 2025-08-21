@@ -132,7 +132,7 @@ ${filledPrompt}
         process.stdout.write(`Timestamp: ${new Date().toISOString()}
 `);
         process.stdout.write('
-');
+        process.stdout.write('\n');
       }
 
       if (step.output_variable) {
