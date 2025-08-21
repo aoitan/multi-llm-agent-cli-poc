@@ -196,7 +196,7 @@ ${filledPrompt}
           process.stdout.write(`Timestamp: ${new Date().toISOString()}
 `);
           process.stdout.write('
-');
+          process.stdout.write('\n');
         }
 
         if (branch.output_variable) {
