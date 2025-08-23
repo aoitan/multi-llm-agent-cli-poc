@@ -47,7 +47,7 @@ def calculate_metrics(response: str, user_prompt: str) -> dict:
     # 他の評価指標もここに追加可能
     return metrics
 
-def generate_reports():
+def generate_reports(user_prompt: str):
     print("--- レポート生成を開始します ---")
 
     if not AB_TEST_CONFIG.get("dynamic_prompt_ab_test_enabled", False):
@@ -60,7 +60,7 @@ def generate_reports():
     # 実際には、ab_test_runner.py がテスト結果をファイルに出力するように変更する必要がある
     
     # 仮のコマンド。ab_test_runner.py がJSONを標準出力に出すと仮定
-    ab_test_cmd = ["python", "scripts/ab_test_runner.py", "--json"] 
+    ab_test_cmd = ["python3", "scripts/ab_test_runner.py", "--json", user_prompt] 
     
     print(f"Running A/B test command: ", " ".join(ab_test_cmd))
     process = subprocess.Popen(ab_test_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -97,4 +97,7 @@ def generate_reports():
     print("\n--- レポート生成が完了しました ---")
 
 if __name__ == "__main__":
-    generate_reports()
+    # main 関数から user_prompt を渡す
+    # ここでは仮のユーザープロンプトを使用
+    # 実際には、CLI引数などから取得する必要がある
+    generate_reports("日本の少子高齢化問題について議論してください")
