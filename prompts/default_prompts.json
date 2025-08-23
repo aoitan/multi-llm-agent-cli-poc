@@ -74,20 +74,4 @@
       "model": "ollama:llama3"
     }
   }
-    "thinker_improver_agent": {
-      "system_prompt_id": "THINKER_IMPROVER_SYSTEM_PROMPT",
-      "description": "思考者・指摘改善者エージェント",
-      "model": "ollama:llama3"
-    },
-    "reviewer_agent": {
-      "system_prompt_id": "REVIEWER_SYSTEM_PROMPT",
-      "description": "批判的レビュアーエージェント",
-      "model": "ollama:llama3"
-    },
-    "summarizer_agent": {
-      "system_prompt_id": "SUMMARIZER_SYSTEM_PROMPT",
-      "description": "要約者エージェント",
-      "model": "ollama:llama3"
-    }
-  }
 }

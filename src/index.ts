@@ -31,6 +31,10 @@ async function main() {
       description: 'Output results in JSON format',
       default: false,
     })
+    .option('prompt-file', { // 新しいオプションを追加
+      type: 'string',
+      description: 'Path to a specific prompt file to use, bypassing scenario identification.',
+    })
     .parse();
 
   const userPrompt = argv['user-prompt'] as string;
@@ -38,6 +42,7 @@ async function main() {
   const model2 = (argv._[1] as string) || 'llama3:8b';
   const workflowId = argv['workflow'] as string;
   const jsonOutput = argv['json'] as boolean;
+  const specificPromptFile = argv['prompt-file'] as string; // 新しいオプションの値を取得
 
   if (!userPrompt) {
     console.error('Usage: npm start --user-prompt "<your_prompt>" [--workflow <workflow_id>]');
@@ -49,35 +54,31 @@ async function main() {
   let actualWorkflowId: string;
 
   try {
-    // シナリオを識別
-    const scenario = await identifyScenario(userPrompt); // 戻り値が Scenario オブジェクトに
-    console.log(`Identified scenario: ${scenario.id}`); // デバッグ用
+    if (specificPromptFile) { // --prompt-file が指定された場合
+      console.log(`Using specific prompt file: ${specificPromptFile}, bypassing scenario identification.`);
+      prompts = await loadPromptFile(specificPromptFile);
+      // specificPromptFile が指定された場合、workflowId は CLI オプションまたはデフォルト値を使用
+      actualWorkflowId = workflowId;
+    } else { // --prompt-file が指定されない場合、既存のシナリオ識別ロジックを使用
+      // シナリオを識別
+      const scenario = await identifyScenario(userPrompt); // 戻り値が Scenario オブジェクトに
+      console.log(`Identified scenario: ${scenario.id}`); // デバッグ用
 
-    // 識別されたシナリオに基づいてプロンプトセットをロード
-    prompts = await loadPromptSetByScenarioId(scenario.id);
+      // 識別されたシナリオに基づいてプロンプトセットをロード
+      prompts = await loadPromptSetByScenarioId(scenario.id);
+
+      // ワークフローIDの決定ロジック
+      if (argv['workflow']) {
+        actualWorkflowId = argv['workflow'] as string; // CLIオプションが優先
+      } else if (scenario.default_workflow_id) {
+        actualWorkflowId = scenario.default_workflow_id; // シナリオに紐づくデフォルトワークフロー
+      } else {
+        actualWorkflowId = 'code_review_and_refactor'; // フォールバック
+      }
+    }
 
     const workflowFilePath = path.resolve(process.cwd(), 'config', 'workflow_config.json');
     workflows = await loadWorkflowFile(workflowFilePath);
-
-    // ワークフローIDの決定ロジック
-    if (argv['workflow']) {
-      actualWorkflowId = argv['workflow'] as string; // CLIオプションが優先
-    } else if (scenario.default_workflow_id) {
-      actualWorkflowId = scenario.default_workflow_id; // シナリオに紐づくデフォルトワークフロー
-    } else {
-      actualWorkflowId = 'code_review_and_refactor'; // フォールバック
-    }
-
-  } catch (error) {
-    console.error(`Error loading configuration or prompt file: ${getErrorMessage(error)}`);
-    process.exit(1);
-  }
-
-  const selectedWorkflow = workflows.workflows[actualWorkflowId]; // actualWorkflowId を使用
-  if (!selectedWorkflow) {
-    console.error(`Workflow with ID '${actualWorkflowId}' not found in workflow_config.json.`); // actualWorkflowId を使用
-    process.exit(1);
-  }
 
   try {
     const initialInput = { "user_input": userPrompt };

@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime
 from string import Template
 
-def run_llm_consultation(user_prompt: str, model1: str, model2: str, config_file_path: str = None, workflow_id: str = None):
+def run_llm_consultation(user_prompt: str, model1: str, model2: str, workflow_id: str = None, prompt_file: str = None):
     """Runs the LLM consultation and returns the final summary and discussion log."""
     command = [
         "node",
@@ -15,10 +15,10 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, config_file
         model1,
         model2,
     ]
-    if config_file_path:
-        command.extend(["--config", config_file_path])
     if workflow_id: # workflow_id があれば追加
         command.extend(["--workflow", workflow_id])
+    if prompt_file: # prompt_file があれば追加
+        command.extend(["--prompt-file", prompt_file])
     print(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
@@ -107,8 +107,8 @@ def main():
                     args.user_prompt, 
                     evaluation_models[0], 
                     evaluation_models[1], 
-                    config_file_path=current_config_file,
-                    workflow_id=current_workflow_id # run_llm_consultation に workflow_id を渡すように変更が必要
+                    workflow_id=current_workflow_id,
+                    prompt_file=current_config_file # --prompt-file オプションを追加
                 )
             elif group_type == "dynamic":
                 scenario_based_selection = group.get("scenario_based_workflow_selection_enabled", False)
@@ -124,7 +124,6 @@ def main():
                     args.user_prompt, 
                     evaluation_models[0], 
                     evaluation_models[1],
-                    config_file_path=None, # index.js が解決
                     workflow_id=None # index.js が解決
                 )
             else:
