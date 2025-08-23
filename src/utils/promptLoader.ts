@@ -63,20 +63,15 @@ export async function loadPromptFile(filePath: string): Promise<PromptFileConten
 }
 
 // 新しく追加する関数
+// シナリオIDとファイルパスのマッピング
+const scenarioPromptFileMap: { [key: string]: string } = {
+  social_issues: './prompts/social_issues_prompts.json',
+  technology: './prompts/technology_prompts.json',
+  general: './prompts/default_prompts.json',
+};
+
 export async function loadPromptSetByScenarioId(scenarioId: string): Promise<PromptFileContent> {
-  let promptFilePath: string;
-  switch (scenarioId) {
-    case 'social_issues':
-      promptFilePath = './prompts/social_issues_prompts.json';
-      break;
-    case 'technology':
-      promptFilePath = './prompts/technology_prompts.json';
-      break;
-    case 'general':
-    default:
-      promptFilePath = './prompts/default_prompts.json';
-      break;
-  }
+  const promptFilePath = scenarioPromptFileMap[scenarioId] || scenarioPromptFileMap['general'];
   return loadPromptFile(promptFilePath);
 }
 
