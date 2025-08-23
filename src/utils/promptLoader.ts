@@ -45,7 +45,11 @@ export async function loadPromptFile(filePath: string): Promise<PromptFileConten
     }
 
     // スキーマ検証 (簡易版)
-    if (content.format_version !== '1.0' || !Array.isArray(content.prompts)) {
+    if (
+      !content ||
+      content.format_version !== '1.0' ||
+      !Array.isArray(content.prompts)
+    ) {
       throw new Error('Invalid schema');
     }
 
