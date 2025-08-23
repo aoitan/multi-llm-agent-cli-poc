@@ -31,47 +31,53 @@ export interface PromptFileContent {
  * @throws Error ファイルが見つからない、JSON形式が不正、スキーマが不正な場合
  */
 export async function loadPromptFile(filePath: string): Promise<PromptFileContent> {
+  const absolutePath = path.resolve(process.cwd(), filePath);
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error('Prompt file not found');
+  }
   try {
-    // ファイルの存在チェック
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Prompt file not found: ${filePath}`);
-    }
-
-    // ファイルの読み込み
-    const fileContent = fs.readFileSync(filePath, 'utf8');
-
-    // JSONパース
-    let parsedContent: any;
+    const data = await fs.promises.readFile(absolutePath, 'utf8');
+    let content: PromptFileContent;
     try {
-      parsedContent = JSON.parse(fileContent);
+      content = JSON.parse(data);
     } catch (jsonError) {
-      throw new Error(`Invalid JSON format in ${filePath}: ${String(jsonError)}`);
+      throw new Error('Invalid JSON format');
     }
 
-    // スキーマ検証
-    if (
-      typeof parsedContent.format_version !== 'string' ||
-      !Array.isArray(parsedContent.prompts)
-    ) {
-      throw new Error(`Invalid schema in ${filePath}: Missing format_version or prompts array.`);
+    // スキーマ検証 (簡易版)
+    if (content.format_version !== '1.0' || !Array.isArray(content.prompts)) {
+      throw new Error('Invalid schema');
     }
 
-    for (const prompt of parsedContent.prompts) {
-      if (
-        typeof prompt.id !== 'string' ||
-        typeof prompt.description !== 'string' ||
-        typeof prompt.content !== 'string'
-      ) {
-        throw new Error(`Invalid prompt definition in ${filePath}: Each prompt must have id, description, and content as strings.`);
+    // プロンプト定義のバリデーション
+    for (const prompt of content.prompts) {
+      if (typeof prompt.id !== 'string' || typeof prompt.description !== 'string' || typeof prompt.content !== 'string') {
+        throw new Error('Invalid prompt definition');
       }
     }
-
-    return parsedContent as PromptFileContent;
-
+    return content;
   } catch (error) {
-    // エラーを再スロー
+    console.error(`Error loading prompt file ${filePath}:`, error);
     throw error;
   }
+}
+
+// 新しく追加する関数
+export async function loadPromptSetByScenarioId(scenarioId: string): Promise<PromptFileContent> {
+  let promptFilePath: string;
+  switch (scenarioId) {
+    case 'social_issues':
+      promptFilePath = './prompts/social_issues_prompts.json';
+      break;
+    case 'technology':
+      promptFilePath = './prompts/technology_prompts.json';
+      break;
+    case 'general':
+    default:
+      promptFilePath = './prompts/default_prompts.json';
+      break;
+  }
+  return loadPromptFile(promptFilePath);
 }
 
 /**

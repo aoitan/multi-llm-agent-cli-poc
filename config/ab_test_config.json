@@ -1,5 +1,18 @@
 {
-  "prompt_file_path": "prompts/default_prompts.json",
-  "experimental_prompt_file_path": "prompts/sample_prompts.json",
+  "dynamic_prompt_ab_test_enabled": true,
+  "test_groups": [
+    {
+      "id": "control",
+      "type": "static",
+      "prompt_file_path": "prompts/default_prompts.json",
+      "workflow_id": "code_review_and_refactor"
+    },
+    {
+      "id": "dynamic_prompt_group",
+      "type": "dynamic",
+      "scenario_based_workflow_selection_enabled": true,
+      "default_scenario_id": "general"
+    }
+  ],
   "evaluation_models": ["llama3:8b", "llama3:8b"]
 }
