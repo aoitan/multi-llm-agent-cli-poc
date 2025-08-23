@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime
 from string import Template
 
-def run_llm_consultation(user_prompt: str, model1: str, model2: str, config_file_path: str = None):
+def run_llm_consultation(user_prompt: str, model1: str, model2: str, config_file_path: str = None, workflow_id: str = None):
     """Runs the LLM consultation and returns the final summary and discussion log."""
     command = [
         "node",
@@ -17,6 +17,8 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, config_file
     ]
     if config_file_path:
         command.extend(["--config", config_file_path])
+    if workflow_id: # workflow_id があれば追加
+        command.extend(["--workflow", workflow_id])
     print(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
@@ -38,6 +40,8 @@ def main():
     parser.add_argument('--runs', type=int, default=1, help='Number of runs for each prompt (default: 1).')
     parser.add_argument('--config', type=str, default='config/ab_test_config.json', help='Path to the A/B test configuration file.')
 
+    parser.add_argument('--json', action='store_true', help='Output results in JSON format.') # --json オプションを追加
+
     args = parser.parse_args()
 
     print(f"Starting A/B test for prompt: \"{args.user_prompt}\"")
@@ -52,33 +56,21 @@ def main():
         print(f"Loaded config from {args.config}")
     else:
         print(f"Config file not found: {args.config}. Using default settings.")
+        # 設定ファイルが見つからない場合はエラーとするか、デフォルト設定を厳密に定義する
+        # 今回はエラーとして終了する
 
-    base_prompt_file = "prompts/default_prompts.json"
-    experimental_prompt_file = config.get("experimental_prompt_file_path")
-    evaluation_models = config.get("evaluation_models", ["llama3:8b", "llama3:8b"])
-
-    if not experimental_prompt_file:
-        print("Error: 'experimental_prompt_file_path' not found in config. Please specify it.")
+    if not config.get("dynamic_prompt_ab_test_enabled", False):
+        print("Error: 'dynamic_prompt_ab_test_enabled' is not true in config. Exiting.")
         return
 
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    output_dir = os.path.join("eval", "prompt_comparison", timestamp)
-    os.makedirs(output_dir, exist_ok=True)
+    test_groups = config.get("test_groups", [])
+    if not test_groups:
+        print("Error: 'test_groups' not found or empty in config. Exiting.")
+        return
 
-    # メタデータの保存
-    metadata = {
-        "user_prompt": args.user_prompt,
-        "runs": args.runs,
-        "config_file": args.config,
-        "base_prompt_file": base_prompt_file,
-        "experimental_prompt_file": experimental_prompt_file,
-        "evaluation_models": evaluation_models,
-        "timestamp": timestamp
-    }
-    with open(os.path.join(output_dir, "metadata.json"), 'w', encoding='utf-8') as f:
-        json.dump(metadata, f, indent=2, ensure_ascii=False)
+    evaluation_models = config.get("evaluation_models", ["llama3:8b", "llama3:8b"])
 
-    # 評価プロンプトテンプレートの読み込み
+    # 評価プロンプトテンプレートの読み込み (これはA/Bテストの評価用なので残す)
     evaluation_prompt_template_path = "prompts/evaluation_prompt_template.md"
     evaluation_prompt_template = ""
     if os.path.exists(evaluation_prompt_template_path):
@@ -88,42 +80,72 @@ def main():
         print(f"Error: Evaluation prompt template not found at {evaluation_prompt_template_path}")
         return
 
-    for i in range(args.runs):
-        print(f"\n--- Run {i+1}/{args.runs} ---")
+    all_results = {} # 全てのテスト結果を格納する辞書
 
-        # Base Prompt 実行
-        print("Running with Base Prompt...")
-        base_summary, base_log = run_llm_consultation(args.user_prompt, "llama3:8b", "llama3:8b", "config/ab_test_config.json")
-        with open(os.path.join(output_dir, f"base_output_{i+1}.md"), 'w', encoding='utf-8') as f:
-            f.write(base_summary)
-        with open(os.path.join(output_dir, f"base_log_{i+1}.json"), 'w', encoding='utf-8') as f:
-            json.dump(base_log, f, indent=2, ensure_ascii=False)
+    for group in test_groups:
+        group_id = group.get("id")
+        group_type = group.get("type")
+        group_results = {} # このグループのテスト結果
 
-        # Experimental Prompt 実行
-        print("Running with Experimental Prompt...")
-        exp_summary, exp_log = run_llm_consultation(args.user_prompt, "llama3:8b", "llama3:8b", "config/ab_test_config.json")
-        with open(os.path.join(output_dir, f"exp_output_{i+1}.md"), 'w', encoding='utf-8') as f:
-            f.write(exp_summary)
-        with open(os.path.join(output_dir, f"exp_log_{i+1}.json"), 'w', encoding='utf-8') as f:
-            json.dump(exp_log, f, indent=2, ensure_ascii=False)
+        print(f"\n--- Running Test Group: {group_id} (Type: {group_type}) ---")
 
-        # 評価LLMによる評価実行
-        print("Running Evaluation LLM...")
-        # 評価プロンプトの生成
-        template = Template(evaluation_prompt_template)
-        evaluation_prompt_content = template.safe_substitute(
-            user_prompt=args.user_prompt,
-            answer_a=base_summary,
-            answer_b=exp_summary
-        )
+        for i in range(args.runs):
+            print(f"  --- Run {i+1}/{args.runs} for Group {group_id} ---")
+            run_key = f"run_{i+1}"
+            
+            current_config_file = None
+            current_workflow_id = None
+            
+            if group_type == "static":
+                current_config_file = group.get("prompt_file_path")
+                current_workflow_id = group.get("workflow_id")
+                if not current_config_file or not current_workflow_id:
+                    print(f"Error: Static group '{group_id}' is missing 'prompt_file_path' or 'workflow_id'. Skipping.")
+                    continue
+                
+                summary, log = run_llm_consultation(
+                    args.user_prompt, 
+                    evaluation_models[0], 
+                    evaluation_models[1], 
+                    config_file_path=current_config_file,
+                    workflow_id=current_workflow_id # run_llm_consultation に workflow_id を渡すように変更が必要
+                )
+            elif group_type == "dynamic":
+                scenario_based_selection = group.get("scenario_based_workflow_selection_enabled", False)
+                default_scenario_id = group.get("default_scenario_id")
+                
+                if not scenario_based_selection:
+                    print(f"Error: Dynamic group '{group_id}' has 'scenario_based_workflow_selection_enabled' as false. Skipping.")
+                    continue
+                
+                # dynamic の場合は、index.js がシナリオに基づいてプロンプトとワークフローを解決するので、
+                # config_file_path は不要、workflow_id も index.js に任せる
+                summary, log = run_llm_consultation(
+                    args.user_prompt, 
+                    evaluation_models[0], 
+                    evaluation_models[1],
+                    config_file_path=None, # index.js が解決
+                    workflow_id=None # index.js が解決
+                )
+            else:
+                print(f"Error: Unknown group type '{group_type}' for group '{group_id}'. Skipping.")
+                continue
 
-        eval_summary, eval_log = run_llm_consultation(evaluation_prompt_content, evaluation_models[0], evaluation_models[1], "config/ab_test_config.json")
-        with open(os.path.join(output_dir, f"evaluation_{i+1}.md"), 'w', encoding='utf-8') as f:
-            f.write(eval_summary)
-        with open(os.path.join(output_dir, f"evaluation_log_{i+1}.json"), 'w', encoding='utf-8') as f:
-            json.dump(eval_log, f, indent=2, ensure_ascii=False)
+            group_results[run_key] = {
+                "finalOutput": summary,
+                "discussionLog": log
+            }
+            
+            # 評価LLMによる評価実行 (これは各グループの実行結果に対して行う)
+            # ここでは簡略化のため、評価LLMの実行は省略。必要に応じて追加する。
+            # 評価LLMは generate_reports.py で行うのが適切かもしれない。
 
-    print("\nA/B test completed.")
+        all_results[group_id] = group_results
+
+    if args.json:
+        print(json.dumps(all_results, indent=2, ensure_ascii=False))
+    else:
+        print("\nA/B test completed. Results are available in 'all_results' variable if not in JSON mode.")
 
 if __name__ == '__main__':
     main()

@@ -131,8 +131,6 @@ ${filledPrompt}
 `);
         process.stdout.write(`Timestamp: ${new Date().toISOString()}
 `);
-        process.stdout.write('
-        process.stdout.write('\n');
       }
 
       if (step.output_variable) {
@@ -195,8 +193,6 @@ ${filledPrompt}
 `);
           process.stdout.write(`Timestamp: ${new Date().toISOString()}
 `);
-          process.stdout.write('
-          process.stdout.write('\n');
         }
 
         if (branch.output_variable) {
@@ -292,7 +288,7 @@ export function fillTemplate(template: string, variables: { [key: string]: strin
   let result = template;
   for (const key in variables) {
     if (Object.prototype.hasOwnProperty.call(variables, key)) {
-      const placeholder = `\\$\\{${key}\\}`;
+      const placeholder = `\\$\{${key}\\}`;
       result = result.replace(new RegExp(placeholder, 'g'), variables[key]);
     }
   }

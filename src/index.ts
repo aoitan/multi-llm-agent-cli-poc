@@ -1,8 +1,9 @@
 import { orchestrateWorkflow } from './agent';
-import { loadPromptFile, PromptFileContent } from './utils/promptLoader';
+import { loadPromptFile, PromptFileContent, loadPromptSetByScenarioId } from './utils/promptLoader';
 import { loadWorkflowFile, WorkflowConfigFileContent, WorkflowDefinition } from './utils/workflowLoader';
 import { loadConfigFile, ConfigContent } from './utils/configLoader';
 import { getErrorMessage } from './utils/errorUtils';
+import { identifyScenario, Scenario } from './utils/scenarioIdentifier';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as path from 'path';
@@ -45,27 +46,42 @@ async function main() {
 
   let prompts: PromptFileContent;
   let workflows: WorkflowConfigFileContent;
+  let actualWorkflowId: string;
 
   try {
-    const defaultPromptFilePath = path.resolve(process.cwd(), 'prompts', 'default_prompts.json');
-    prompts = await loadPromptFile(defaultPromptFilePath);
+    // シナリオを識別
+    const scenario = await identifyScenario(userPrompt); // 戻り値が Scenario オブジェクトに
+    console.log(`Identified scenario: ${scenario.id}`); // デバッグ用
+
+    // 識別されたシナリオに基づいてプロンプトセットをロード
+    prompts = await loadPromptSetByScenarioId(scenario.id);
 
     const workflowFilePath = path.resolve(process.cwd(), 'config', 'workflow_config.json');
     workflows = await loadWorkflowFile(workflowFilePath);
+
+    // ワークフローIDの決定ロジック
+    if (argv['workflow']) {
+      actualWorkflowId = argv['workflow'] as string; // CLIオプションが優先
+    } else if (scenario.default_workflow_id) {
+      actualWorkflowId = scenario.default_workflow_id; // シナリオに紐づくデフォルトワークフロー
+    } else {
+      actualWorkflowId = 'code_review_and_refactor'; // フォールバック
+    }
 
   } catch (error) {
     console.error(`Error loading configuration or prompt file: ${getErrorMessage(error)}`);
     process.exit(1);
   }
 
-  const selectedWorkflow = workflows.workflows[workflowId];
+  const selectedWorkflow = workflows.workflows[actualWorkflowId]; // actualWorkflowId を使用
   if (!selectedWorkflow) {
-    console.error(`Workflow with ID '${workflowId}' not found in workflow_config.json.`);
+    console.error(`Workflow with ID '${actualWorkflowId}' not found in workflow_config.json.`); // actualWorkflowId を使用
     process.exit(1);
   }
 
   try {
     const initialInput = { "user_input": userPrompt };
+    // orchestrateWorkflow にロードされたプロンプトセットを渡す
     const result = await orchestrateWorkflow(selectedWorkflow, initialInput, prompts, jsonOutput);
     if (jsonOutput) {
       console.log(JSON.stringify(result, null, 2));
