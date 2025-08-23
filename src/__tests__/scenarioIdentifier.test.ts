@@ -43,22 +43,22 @@ describe('identifyScenario', () => {
 
   it('should identify "social_issues" scenario for a matching prompt', async () => {
     const scenarioId = await identifyScenario('日本の少子高齢化問題について議論してください');
-    expect(scenarioId).toBe('social_issues');
+    expect(scenarioId.id).toBe('social_issues');
   });
 
   it('should identify "technology" scenario for a matching prompt', async () => {
     const scenarioId = await identifyScenario('AIの最新動向について教えてください');
-    expect(scenarioId).toBe('technology');
+    expect(scenarioId.id).toBe('technology');
   });
 
   it('should return default scenario if no keywords match', async () => {
     const scenarioId = await identifyScenario('今日の天気について');
-    expect(scenarioId).toBe('general');
+    expect(scenarioId.id).toBe('general');
   });
 
   it('should be case-insensitive', async () => {
     const scenarioId = await identifyScenario('プログラミングの学習方法'); // 修正
-    expect(scenarioId).toBe('technology');
+    expect(scenarioId.id).toBe('technology');
   });
 
   it('should identify the first matching scenario if multiple keywords match different scenarios', async () => {
@@ -66,6 +66,6 @@ describe('identifyScenario', () => {
     // social_issuesがconfigのscenarios配列でtechnologyより先に定義されているため、
     // social_issuesが返されることを期待する。
     const scenarioId = await identifyScenario('貧困問題とAIの活用について');
-    expect(scenarioId).toBe('social_issues');
+    expect(scenarioId.id).toBe('social_issues');
   });
 });
