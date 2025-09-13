@@ -82,64 +82,73 @@ def main():
 
     all_results = {} # 全てのテスト結果を格納する辞書
 
-    for group in test_groups:
-        group_id = group.get("id")
-        group_type = group.get("type")
-        group_results = {} # このグループのテスト結果
+    test_prompts = config.get("test_prompts", [])
+    if not test_prompts:
+        print("Error: 'test_prompts' not found or empty in config. Exiting.")
+        return
 
-        print(f"\n--- Running Test Group: {group_id} (Type: {group_type}) ---")
+    for test_prompt_data in test_prompts:
+        prompt_id = test_prompt_data.get("id")
+        user_prompt = test_prompt_data.get("user_prompt")
+        expected_scenario_id = test_prompt_data.get("expected_scenario_id") # 必要に応じて使用
 
-        for i in range(args.runs):
-            print(f"  --- Run {i+1}/{args.runs} for Group {group_id} ---")
-            run_key = f"run_{i+1}"
-            
-            current_config_file = None
-            current_workflow_id = None
-            
-            if group_type == "static":
-                current_config_file = group.get("prompt_file_path")
-                current_workflow_id = group.get("workflow_id")
-                if not current_config_file or not current_workflow_id:
-                    print(f"Error: Static group '{group_id}' is missing 'prompt_file_path' or 'workflow_id'. Skipping.")
+        print(f"\n--- Running A/B Test for Prompt: {prompt_id} ---")
+
+        prompt_results = {} # このプロンプトのテスト結果
+
+        for group in test_groups:
+            group_id = group.get("id")
+            group_type = group.get("type")
+            group_results = {} # このグループのテスト結果
+
+            print(f"\n--- Running Test Group: {group_id} (Type: {group_type}) for Prompt {prompt_id} ---")
+
+            for i in range(args.runs):
+                print(f"  --- Run {i+1}/{args.runs} for Group {group_id} and Prompt {prompt_id} ---")
+                run_key = f"run_{i+1}"
+                
+                current_config_file = None
+                current_workflow_id = None
+                
+                if group_type == "static":
+                    current_config_file = group.get("prompt_file_path")
+                    current_workflow_id = group.get("workflow_id")
+                    if not current_config_file or not current_workflow_id:
+                        print(f"Error: Static group '{group_id}' is missing 'prompt_file_path' or 'workflow_id'. Skipping.")
+                        continue
+                    
+                    summary, log = run_llm_consultation(
+                        user_prompt, # ここで test_prompts から取得した user_prompt を使用
+                        evaluation_models[0], 
+                        evaluation_models[1], 
+                        workflow_id=current_workflow_id,
+                        prompt_file=current_config_file
+                    )
+                elif group_type == "dynamic":
+                    scenario_based_selection = group.get("scenario_based_workflow_selection_enabled", False)
+                    
+                    if not scenario_based_selection:
+                        print(f"Error: Dynamic group '{group_id}' has 'scenario_based_workflow_selection_enabled' as false. Skipping.")
+                        continue
+                    
+                    summary, log = run_llm_consultation(
+                        user_prompt, # ここで test_prompts から取得した user_prompt を使用
+                        evaluation_models[0], 
+                        evaluation_models[1],
+                        workflow_id=None # index.js が解決
+                    )
+                else:
+                    print(f"Error: Unknown group type '{group_type}' for group '{group_id}'. Skipping.")
                     continue
-                
-                summary, log = run_llm_consultation(
-                    args.user_prompt, 
-                    evaluation_models[0], 
-                    evaluation_models[1], 
-                    workflow_id=current_workflow_id,
-                    prompt_file=current_config_file # --prompt-file オプションを追加
-                )
-            elif group_type == "dynamic":
-                scenario_based_selection = group.get("scenario_based_workflow_selection_enabled", False)
-                default_scenario_id = group.get("default_scenario_id")
-                
-                if not scenario_based_selection:
-                    print(f"Error: Dynamic group '{group_id}' has 'scenario_based_workflow_selection_enabled' as false. Skipping.")
-                    continue
-                
-                # dynamic の場合は、index.js がシナリオに基づいてプロンプトとワークフローを解決するので、
-                # config_file_path は不要、workflow_id も index.js に任せる
-                summary, log = run_llm_consultation(
-                    args.user_prompt, 
-                    evaluation_models[0], 
-                    evaluation_models[1],
-                    workflow_id=None # index.js が解決
-                )
-            else:
-                print(f"Error: Unknown group type '{group_type}' for group '{group_id}'. Skipping.")
-                continue
 
-            group_results[run_key] = {
-                "finalOutput": summary,
-                "discussionLog": log
-            }
-            
-            # 評価LLMによる評価実行 (これは各グループの実行結果に対して行う)
-            # ここでは簡略化のため、評価LLMの実行は省略。必要に応じて追加する。
-            # 評価LLMは generate_reports.py で行うのが適切かもしれない。
+                group_results[run_key] = {
+                    "finalOutput": summary,
+                    "discussionLog": log
+                }
+                
+            prompt_results[group_id] = group_results # プロンプトIDの下にグループ結果を格納
 
-        all_results[group_id] = group_results
+        all_results[prompt_id] = prompt_results # 全体結果にプロンプト結果を格納
 
     if args.json:
         print(json.dumps(all_results, indent=2, ensure_ascii=False))

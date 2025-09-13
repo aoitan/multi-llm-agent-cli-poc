@@ -5,7 +5,7 @@
       "name": "社会問題",
       "description": "社会問題に関する議論",
       "keywords": ["少子高齢化", "環境問題", "貧困"],
-      "default_workflow_id": "code_review_and_refactor"
+      "default_workflow_id": "parallel_qa_and_summarize"
     },
     {
       "id": "technology",
@@ -19,7 +19,7 @@
       "name": "一般",
       "description": "上記以外の一般的な議論",
       "keywords": [],
-      "default_workflow_id": "code_review_and_refactor"
+      "default_workflow_id": "parallel_qa_and_summarize"
     }
   ],
   "default_scenario_id": "general"
