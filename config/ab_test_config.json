@@ -1,5 +1,57 @@
 {
   "dynamic_prompt_ab_test_enabled": true,
+  "test_prompts": [
+    {
+      "id": "PROMPT_1_SOCIAL_ISSUES",
+      "user_prompt": "日本の高齢化社会における介護人材不足の解決策を3つ提案してください。",
+      "expected_scenario_id": "social_issues"
+    },
+    {
+      "id": "PROMPT_2_SOCIAL_ISSUES",
+      "user_prompt": "気候変動が日本の農業に与える影響について、具体的な事例を挙げて説明してください。",
+      "expected_scenario_id": "social_issues"
+    },
+    {
+      "id": "PROMPT_3_SOCIAL_ISSUES",
+      "user_prompt": "貧困問題に対する政府の現在の取り組みを評価し、改善点を提案してください。",
+      "expected_scenario_id": "social_issues"
+    },
+    {
+      "id": "PROMPT_4_TECHNOLOGY",
+      "user_prompt": "Pythonでクイックソートアルゴリズムを実装してください。",
+      "expected_scenario_id": "technology"
+    },
+    {
+      "id": "PROMPT_5_TECHNOLOGY",
+      "user_prompt": "AIが社会に与える倫理的影響について、賛成と反対の立場から議論を構成してください。",
+      "expected_scenario_id": "technology"
+    },
+    {
+      "id": "PROMPT_6_TECHNOLOGY",
+      "user_prompt": "量子コンピュータの基本的な原理と、それが従来のコンピュータとどう異なるかを説明してください。",
+      "expected_scenario_id": "technology"
+    },
+    {
+      "id": "PROMPT_7_GENERAL",
+      "user_prompt": "今日のランチにおすすめのレシピを3つ提案してください。",
+      "expected_scenario_id": "general"
+    },
+    {
+      "id": "PROMPT_8_GENERAL",
+      "user_prompt": "以下の英文を日本語に翻訳してください：'The quick brown fox jumps over the lazy dog.'",
+      "expected_scenario_id": "general"
+    },
+    {
+      "id": "PROMPT_9_GENERAL",
+      "user_prompt": "宇宙旅行の未来について、技術的課題と倫理的側面から考察してください。",
+      "expected_scenario_id": "general"
+    },
+    {
+      "id": "PROMPT_10_GENERAL",
+      "user_prompt": "与えられたテキストから、日付と場所をすべて抽出してください：『2024年10月26日、東京ビッグサイトでイベントが開催されます。翌日には大阪城ホールでも関連イベントがあります。』",
+      "expected_scenario_id": "general"
+    }
+  ],
   "test_groups": [
     {
       "id": "control",
@@ -10,8 +62,7 @@
     {
       "id": "dynamic_prompt_group",
       "type": "dynamic",
-      "scenario_based_workflow_selection_enabled": true,
-      "default_scenario_id": "general"
+      "scenario_based_workflow_selection_enabled": true
     }
   ],
   "evaluation_models": ["llama3:8b", "llama3:8b"]

@@ -14,7 +14,7 @@
     {
       "id": "THINKER_INITIAL_PROMPT_TEMPLATE",
       "description": "思考者エージェントの初期プロンプトテンプレート",
-      "content": "ユーザーのプロンプトに対して、あなたの素の思考で回答してください。\n**以下の元のユーザープロンプトの意図と要求から逸脱しないでください。**\n日本語で解答してください。\n\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nあなたの回答:"
+      "content": "ユーザーのプロンプトに対して、あなたの素の思考で回答してください.\n**以下の元のユーザープロンプトの意図と要求から逸脱しないでください。**\n日本語で解答してください。\n\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nあなたの回答:"
     },
     {
       "id": "REVIEWER_PROMPT_TEMPLATE",
@@ -45,6 +45,26 @@
       "id": "SUMMARIZER_PROMPT_TEMPLATE",
       "description": "要約者エージェントのプロンプトテンプレート",
       "content": "以下の情報を要約してください: {{answers}}"
+    },
+    {
+      "id": "GENERAL_PROMPT_1",
+      "description": "今日のランチにおすすめのレシピ提案",
+      "content": "あなたは栄養士であり、多忙なビジネスパーソン向けのランチレシピを提案する専門家です。今日のランチにおすすめの、準備時間が15分以内で、栄養バランスの取れたレシピを3つ提案してください。各レシピには、主要な材料、簡単な調理手順、および栄養面でのポイントを簡潔に記述してください。"
+    },
+    {
+      "id": "GENERAL_PROMPT_2",
+      "description": "英文の日本語翻訳",
+      "content": "あなたはプロの翻訳家です。以下の英文を、文脈とニュアンスを正確に捉え、自然な日本語に翻訳してください。特に、比喩表現や慣用句がある場合は、意訳を適切に行い、文化的背景も考慮してください。翻訳結果のみを提示し、解説は不要です。\n\n英文: '${text}'"
+    },
+    {
+      "id": "GENERAL_PROMPT_3",
+      "description": "宇宙旅行の未来に関する考察",
+      "content": "あなたは宇宙開発の専門家であり、倫理学者でもあります。宇宙旅行の未来について、現在の技術的課題（例：推進システム、生命維持、放射線対策）と、それに伴う倫理的側面（例：宇宙環境の保護、異星生命体との接触、宇宙資源の公平な利用）から深く考察してください。それぞれの側面について、具体的な課題と潜在的な解決策を提示してください。"
+    },
+    {
+      "id": "GENERAL_PROMPT_4",
+      "description": "テキストからの日付と場所の抽出",
+      "content": "あなたは情報抽出の専門家です。以下のテキストから、すべての日付情報と場所情報を正確に抽出してください。抽出した情報は、それぞれ「日付: [日付のリスト]」、「場所: [場所のリスト]」という形式でリストアップしてください。テキストに複数の日付や場所が含まれる場合は、すべてを網羅してください。\n\nテキスト: '${text}'"
     }
   ],
   "agent_roles": {
@@ -71,22 +91,6 @@
     "qa_agent_2": {
       "system_prompt_id": "SUMMARIZER_SYSTEM_PROMPT",
       "description": "質問応答エージェント2",
-      "model": "ollama:llama3"
-    }
-  }
-    "thinker_improver_agent": {
-      "system_prompt_id": "THINKER_IMPROVER_SYSTEM_PROMPT",
-      "description": "思考者・指摘改善者エージェント",
-      "model": "ollama:llama3"
-    },
-    "reviewer_agent": {
-      "system_prompt_id": "REVIEWER_SYSTEM_PROMPT",
-      "description": "批判的レビュアーエージェント",
-      "model": "ollama:llama3"
-    },
-    "summarizer_agent": {
-      "system_prompt_id": "SUMMARIZER_SYSTEM_PROMPT",
-      "description": "要約者エージェント",
       "model": "ollama:llama3"
     }
   }
