@@ -78,7 +78,7 @@ def main():
         return
 
     # ab_test_runner.pyをsubprocessで実行し、その出力をキャプチャする
-    ab_test_runner_command = ["python3", "scripts/ab_test_runner.py", "--json", "dummy_prompt"] # dummy_promptは必須引数なので適当な値を渡す
+    ab_test_runner_command = ["python3", "scripts/ab_test_runner.py", "--json", "--user-prompt", config.get("test_prompts", [{}])[0].get("user_prompt", "")] # dummy_promptは必須引数なので適当な値を渡す
     print(f"Running A/B test command: {' '.join(ab_test_runner_command)}")
     try:
         ab_test_result = subprocess.run(ab_test_runner_command, capture_output=True, text=True, check=True)
