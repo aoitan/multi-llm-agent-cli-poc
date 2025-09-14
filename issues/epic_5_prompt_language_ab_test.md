@@ -6,6 +6,6 @@ LLMへの内部プロンプトの言語（日本語 vs 英語）が応答品質�
 
 ## 関連ストーリー
 
-*   [ストーリー 5.1: プロンプトの翻訳と管理](story_5_1_prompt_translation_and_management.md)
-*   [ストーリー 5.2: A/Bテストフレームワークの言語対応](story_5_2_ab_test_framework_language_support.md)
-*   [ストーリー 5.3: 評価指標に基づくレポート生成の強化](story_5_3_enhance_report_generation_based_on_evaluation_metrics.md)
+*   [x] [ストーリー 5.1: プロンプトの翻訳と管理](story_5_1_prompt_translation_and_management.md)
+*   [x] [ストーリー 5.2: A/Bテストフレームワークの言語対応](story_5_2_ab_test_framework_language_support.md)
+*   [x] [ストーリー 5.3: 評価指標に基づくレポート生成の強化](story_5_3_enhance_report_generation_based_on_evaluation_metrics.md)

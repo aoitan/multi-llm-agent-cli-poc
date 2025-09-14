@@ -10,12 +10,12 @@ A/Bテストフレームワークが英語プロンプトを正しくロード�
 
 ## 受け入れ条件
 
-*   `prompts/` ディレクトリ内に、翻訳された英語プロンプトを格納するための新しいJSONファイル（例：`prompts/english_prompts.json`）が作成されること。
-*   `english_prompts.json` の構造は、`default_prompts.json` と同じ形式であり、`promptLoader.ts` でロード可能であること。
-*   英語プロンプトファイルには、テスト対象となる全ての翻訳済みプロンプトが含まれていること。
+*   [x] `prompts/` ディレクトリ内に、翻訳された英語プロンプトを格納するための新しいJSONファイル（例：`prompts/english_prompts.json`）が作成されること。
+*   [x] `english_prompts.json` の構造は、`default_prompts.json` と同じ形式であり、`promptLoader.ts` でロード可能であること。
+*   [x] 英語プロンプトファイルには、テスト対象となる全ての翻訳済みプロンプトが含まれていること。
 
 ## 作業手順
 
-1.  `prompts/english_prompts.json` ファイルを作成する。
-2.  `task_5_1_1` で翻訳された英語プロンプトを、`default_prompts.json` の構造に合わせて `english_prompts.json` に記述する。
-3.  `promptLoader.ts` を使用して `english_prompts.json` が正しくロードできることを確認する簡単なテストを行う。
+1.  [x] `prompts/english_prompts.json` ファイルを作成する。
+2.  [x] `task_5_1_1` で翻訳された英語プロンプトを、`default_prompts.json` の構造に合わせて `english_prompts.json` に記述する。
+3.  [x] `promptLoader.ts` を使用して `english_prompts.json` が正しくロードできることを確認する簡単なテストを行う。

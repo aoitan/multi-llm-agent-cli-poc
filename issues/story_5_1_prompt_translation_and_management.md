@@ -6,5 +6,5 @@
 
 ## 関連タスク
 
-*   [タスク 5.1.1: テスト対象プロンプトの特定と翻訳](task_5_1_1_identify_and_translate_prompts_for_testing.md)
-*   [タスク 5.1.2: 英語プロンプトファイルの準備](task_5_1_2_prepare_english_prompt_files.md)
+*   [x] [タスク 5.1.1: テスト対象プロンプトの特定と翻訳](task_5_1_1_identify_and_translate_prompts_for_testing.md)
+*   [x] [タスク 5.1.2: 英語プロンプトファイルの準備](task_5_1_2_prepare_english_prompt_files.md)

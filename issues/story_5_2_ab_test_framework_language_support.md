@@ -6,5 +6,5 @@
 
 ## 関連タスク
 
-*   [タスク 5.2.1: A/Bテスト設定ファイルの更新](task_5_2_1_update_ab_test_configuration_file.md)
-*   [タスク 5.2.2: `ab_test_runner.py`の言語対応](task_5_2_2_adapt_ab_test_runner_for_language_support.md)
+*   [x] [タスク 5.2.1: A/Bテスト設定ファイルの更新](task_5_2_1_update_ab_test_configuration_file.md)
+*   [x] [タスク 5.2.2: `ab_test_runner.py`の言語対応](task_5_2_2_adapt_ab_test_runner_for_language_support.md)
