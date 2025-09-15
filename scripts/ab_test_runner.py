@@ -25,14 +25,6 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, workflow_id
     else:
         actual_prompt_file = prompt_file # configで指定されたもの、またはデフォルト
 
-    # prompt_languageに基づいてprompt_fileを決定
-    if prompt_language == "english":
-        actual_prompt_file = "prompts/english_prompts.json"
-    elif prompt_language == "japanese":
-        actual_prompt_file = "prompts/default_prompts.json"
-    else:
-        actual_prompt_file = prompt_file # configで指定されたもの、またはデフォルト
-
     if actual_prompt_file: # 決定されたprompt_fileがあれば追加
         command.extend(["--prompt-file", actual_prompt_file])
     print(f"Running command: {' '.join(command)}")

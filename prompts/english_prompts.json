@@ -75,7 +75,7 @@
     },
     "reviewer_agent": {
       "system_prompt_id": "REVIEWER_SYSTEM_PROMPT",
-      "description": "批判的レビュアーエージェント",
+      "description": "Critical Reviewer Agent",
       "model": "ollama:llama3"
     },
     "summarizer_agent": {
@@ -93,5 +93,7 @@
       "description": "Question Answering Agent 2",
       "model": "ollama:llama3"
     }
+  }
+} }
   }
 }
