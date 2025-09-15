@@ -6,6 +6,9 @@ describe('ab_test_runner.py language support', () => {
   const configPath = path.join(__dirname, '../../config/ab_test_config.json');
   const originalConfigContent = fs.readFileSync(configPath, 'utf8');
 
+  // 共通のコマンドラインオプションを変数として定義
+  const commonCliOptions = `--json "テストプロンプト" --config ${configPath}`;
+
   beforeEach(() => {
     // テストごとにab_test_config.jsonをリセット
     fs.writeFileSync(configPath, originalConfigContent);
@@ -23,16 +26,9 @@ describe('ab_test_runner.py language support', () => {
     fs.writeFileSync(configPath, JSON.stringify(tempConfig, null, 2));
 
     try {
-      const output = execSync('python3 scripts/ab_test_runner.py --json "テストプロンプト" --config ' + configPath, { encoding: 'utf8' });
-      // ここでab_test_runner.pyの出力（JSON）をパースし、
-      // node dist/index.jsに渡された引数を確認するロジックを追加する
-      // ただし、ab_test_runner.pyがnode dist/index.jsのコマンドライン引数を
-      // 出力するようにはなっていないため、直接検証は難しい。
-      // ここでは、ab_test_runner.pyがエラーなく実行されることを確認するにとどめる。
+      const output = execSync(`python3 scripts/ab_test_runner.py ${commonCliOptions}`, { encoding: 'utf8' });
       expect(output).toContain('--- Running A/B Test for Prompt: PROMPT_1_SOCIAL_ISSUES ---');
       expect(output).toContain('--- Running Test Group: control (Type: static) for Prompt PROMPT_1_SOCIAL_ISSUES ---');
-      // 実際には、node dist/index.jsに渡された --prompt-file の値を確認したい
-      // これはab_test_runner.pyのstdoutを解析する必要がある
     } catch (error) {
       console.error('Test failed:', error.stdout, error.stderr);
       fail(error.message);
@@ -46,10 +42,9 @@ describe('ab_test_runner.py language support', () => {
     fs.writeFileSync(configPath, JSON.stringify(tempConfig, null, 2));
 
     try {
-      const output = execSync('python3 scripts/ab_test_runner.py --json "テストプロンプト" --config ' + configPath, { encoding: 'utf8' });
+      const output = execSync(`python3 scripts/ab_test_runner.py ${commonCliOptions}`, { encoding: 'utf8' });
       expect(output).toContain('--- Running A/B Test for Prompt: PROMPT_1_SOCIAL_ISSUES ---');
       expect(output).toContain('--- Running Test Group: dynamic_prompt_group (Type: dynamic) for Prompt PROMPT_1_SOCIAL_ISSUES ---');
-      // 実際には、node dist/index.jsに渡された --prompt-file の値を確認したい
     } catch (error) {
       console.error('Test failed:', error.stdout, error.stderr);
       fail(error.message);

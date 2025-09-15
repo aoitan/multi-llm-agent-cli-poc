@@ -101,32 +101,42 @@ class TestGenerateReports(unittest.TestCase):
                 self.assertIn("#### 評価指標", printed_output)
                 self.assertIn("| 指標 | Control Group (日本語) | Dynamic Prompt Group (英語) |", printed_output)
                 self.assertIn("|---|---|---|", printed_output)
-                self.assertIn("| 総応答文字数 | 12 | 28 |", printed_output) # finalOutputの文字数
+                
+                # 応答文字列を変数に分けて期待値を計算
+                control_final_output = "日本語の最終出力です。"
+                dynamic_final_output = "This is the final output in English."
+                
+                self.assertIn(f"| 総応答文字数 | {len(control_final_output)} | {len(dynamic_final_output)} |", printed_output)
                 self.assertIn("| 平均応答時間 (ms) | 100.00 | 150.00 |", printed_output)
                 self.assertIn("| LLM呼び出し回数 | 1 | 1 |", printed_output)
                 self.assertIn("#### LLM応答比較", printed_output)
                 self.assertIn("##### Control Group (日本語)", printed_output)
-                self.assertIn("日本語の最終出力です。", printed_output)
+                self.assertIn(control_final_output, printed_output)
                 self.assertIn("##### Dynamic Prompt Group (英語)", printed_output)
-                self.assertIn("This is the final output in English.", printed_output)
+                self.assertIn(dynamic_final_output, printed_output)
 
     def test_extract_metrics(self):
+        response1_content = "Response 1. Ollama API call to llama3:8b took 100.50 ms"
+        response2_content = "Response 2. Ollama API call to llama3:8b took 200.50 ms"
+        response3_content = "Response 3. No time here."
+        
         log = [
-            {"response_received": "Response 1. Ollama API call to llama3:8b took 100.50 ms"},
-            {"response_received": "Response 2. Ollama API call to llama3:8b took 200.50 ms"},
-            {"response_received": "Response 3. No time here."}
+            {"response_received": response1_content},
+            {"response_received": response2_content},
+            {"response_received": response3_content}
         ]
         metrics = extract_metrics(log)
-        self.assertEqual(metrics["total_response_length"], len("Response 1. Ollama API call to llama3:8b took 100.50 ms") + len("Response 2. Ollama API call to llama3:8b took 200.50 ms") + len("Response 3. No time here."))
+        self.assertEqual(metrics["total_response_length"], len(response1_content) + len(response2_content) + len(response3_content))
         self.assertAlmostEqual(metrics["avg_response_time_ms"], 150.50)
         self.assertEqual(metrics["num_llm_calls"], 2)
 
         # LLM呼び出しがない場合
+        response_no_llm_content = "Just a response."
         log_no_llm = [
-            {"response_received": "Just a response."}
+            {"response_received": response_no_llm_content}
         ]
         metrics_no_llm = extract_metrics(log_no_llm)
-        self.assertEqual(metrics_no_llm["total_response_length"], len("Just a response."))
+        self.assertEqual(metrics_no_llm["total_response_length"], len(response_no_llm_content))
         self.assertEqual(metrics_no_llm["avg_response_time_ms"], 0)
         self.assertEqual(metrics_no_llm["num_llm_calls"], 0)
 
