@@ -18,4 +18,4 @@
 
 1.  [x] `scripts/ab_test_runner.py` 内で、`ab_test_config.json` から `prompt_language_test_enabled` やプロンプトファイルのパスを読み込むロジックを追加する。
 2.  [x] `run_llm_consultation` 関数を呼び出す際に、テストグループに応じて異なるプロンプトファイルを指定できるように修正する。
-3.  [ ] 言語テストの実行フローをテストケースで検証する。
+3.  [x] 言語テストの実行フローをテストケースで検証する。
