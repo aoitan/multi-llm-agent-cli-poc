@@ -1,103 +1,147 @@
-import subprocess
+import argparse
 import os
 import json
+import re # 正規表現のために追加
+from datetime import datetime
 
-CONFIG_FILE_PATH = "config/ab_test_config.json"
-
-def load_ab_test_config():
+def run_llm_consultation(user_prompt: str, model1: str, model2: str, workflow_id: str = None, prompt_file: str = None):
+    """Runs the LLM consultation and returns the final summary and discussion log."""
+    command = [
+        "node",
+        "dist/index.js",
+        "--json", # Add --json argument
+        "--user-prompt", user_prompt,
+        model1,
+        model2,
+    ]
+    if workflow_id:
+        command.extend(["--workflow", workflow_id])
+    if prompt_file:
+        command.extend(["--prompt-file", prompt_file])
+    print(f"Running command: {' '.join(command)}")
     try:
-        with open(CONFIG_FILE_PATH, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"Error: {CONFIG_FILE_PATH} not found.")
-        exit(1)
-    except json.JSONDecodeError:
-        print(f"Error: Invalid JSON in {CONFIG_FILE_PATH}.")
-        exit(1)
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        return data.get('finalOutput', ''), data.get('discussionLog', [])
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Command '{' '.join(command)}' failed with exit code {e.returncode}")
+        print(f"Stdout:\n{e.stdout}")
+        print(f"Stderr:\n{e.stderr}")
+        return e.stdout if e.stdout else "", []
+    except json.JSONDecodeError as e:
+        print(f"Error: Could not decode JSON from stdout: {e}")
+        print(f"Stdout:\n{result.stdout}")
+        return result.stdout, []
 
-AB_TEST_CONFIG = load_ab_test_config()
+def extract_metrics(discussion_log: list) -> dict:
+    """
+    discussionLogから応答の長さとLLMの応答速度を抽出する。
+    """
+    total_response_length = 0
+    total_response_time_ms = 0
+    num_llm_calls = 0
 
-def get_base_dir():
-    try:
-        with open("eval/model_comparison/current_run_base_dir.txt", "r") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        print("Error: current_run_base_dir.txt not found. Run prepare_evaluation.py first.")
-        exit(1)
+    for entry in discussion_log:
+        if "response_received" in entry:
+            total_response_length += len(entry["response_received"])
+        
+        # LLMの応答速度を抽出
+        # 例: "Ollama API call to llama3:8b took 16103.49 ms"
+        match = re.search(r"Ollama API call to llama3:8b took (\d+\.\d+) ms", entry.get("response_received", ""))
+        if match:
+            total_response_time_ms += float(match.group(1))
+            num_llm_calls += 1
+    
+    avg_response_time_ms = total_response_time_ms / num_llm_calls if num_llm_calls > 0 else 0
+    
+    return {
+        "total_response_length": total_response_length,
+        "avg_response_time_ms": avg_response_time_ms,
+        "num_llm_calls": num_llm_calls
+    }
 
-BASE_DIR = get_base_dir()
-OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
-RECORDS_DIR = os.path.join(BASE_DIR, "records")
+def main():
+    parser = argparse.ArgumentParser(description='Generate A/B test reports for LLM prompts.')
+    parser.add_argument('--json', action='store_true', help='Output results in JSON format.')
+    parser.add_argument('--config', type=str, default='config/ab_test_config.json', help='Path to the A/B test configuration file.')
+    args = parser.parse_args()
 
-
-
-def calculate_metrics(response: str, user_prompt: str) -> dict:
-    metrics = {}
-    # 応答の長さ
-    metrics["response_length"] = len(response.strip())
-
-    # 特定のキーワードの出現率 (例: user_prompt内の単語をキーワードとする)
-    user_prompt_words = set(word.lower() for word in user_prompt.split() if len(word) > 2) # 短い単語は除外
-    found_keywords = 0
-    for word in user_prompt_words:
-        if word in response.lower():
-            found_keywords += 1
-    metrics["keyword_match_rate"] = (found_keywords / len(user_prompt_words)) if user_prompt_words else 0
-
-    # 他の評価指標もここに追加可能
-    return metrics
-
-def generate_reports(user_prompt: str):
     print("--- レポート生成を開始します ---")
 
-    if not AB_TEST_CONFIG.get("dynamic_prompt_ab_test_enabled", False):
-        print("Dynamic prompt A/B test is not enabled in ab_test_config.json. Exiting.")
+    config = {}
+    if os.path.exists(args.config):
+        with open(args.config, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        print(f"Loaded config from {args.config}")
+    else:
+        print(f"Error: Config file not found: {args.config}. Exiting.")
         return
 
-    # A/Bテストを実行するコマンドを構築
-    # ab_test_runner.py は、テストグループ、ユーザープロンプト、モデルなどを引数に取る
-    # ここでは、簡単な例として、ab_test_runner.py を直接呼び出す
-    # 実際には、ab_test_runner.py がテスト結果をファイルに出力するように変更する必要がある
-    
-    # 仮のコマンド。ab_test_runner.py がJSONを標準出力に出すと仮定
-    ab_test_cmd = ["python3", "scripts/ab_test_runner.py", "--json", user_prompt] 
-    
-    print(f"Running A/B test command: ", " ".join(ab_test_cmd))
-    process = subprocess.Popen(ab_test_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    stdout, stderr = process.communicate()
-
-    if process.returncode != 0:
-        print(f"A/B test command failed with exit code {process.returncode}")
-        print("Stderr:", stderr)
-        return
-
+    # ab_test_runner.pyをsubprocessで実行し、その出力をキャプチャする
+    ab_test_runner_command = ["python3", "scripts/ab_test_runner.py", "--json", "--user-prompt", config.get("test_prompts", [{}])[0].get("user_prompt", "")] # dummy_promptは必須引数なので適当な値を渡す
+    print(f"Running A/B test command: {' '.join(ab_test_runner_command)}")
     try:
-        ab_test_results = json.loads(stdout)
-    except json.JSONDecodeError:
-        print("Error: Failed to parse A/B test results as JSON.")
-        print("Stdout:", stdout)
+        ab_test_result = subprocess.run(ab_test_runner_command, capture_output=True, text=True, check=True)
+        all_results = json.loads(ab_test_result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error: A/B test runner failed with exit code {e.returncode}")
+        print(f"Stdout:\n{e.stdout}")
+        print(f"Stderr:\n{e.stderr}")
+        return
+    except json.JSONDecodeError as e:
+        print(f"Error: Failed to parse A/B test results as JSON.")
+        print(f"Stdout:\n{ab_test_result.stdout}")
         return
 
-    # ここからab_test_resultsを解析してレポートを生成するロジック
-    print("\n--- A/B Test Results Summary ---")
-    for group_id, group_data in ab_test_results.items():
-        print(f"\nGroup: {group_id}")
-        for prompt_id, prompt_results in group_data.items():
-            print(f"  Prompt: {prompt_id}")
-            for run_id, run_data in prompt_results.items():
-                print(f"    Run {run_id}:")
-                final_output = run_data.get('finalOutput', '')
-                print(f"      Final Output: {final_output}")
-                
-                # 評価指標の計算
-                metrics = calculate_metrics(final_output, user_prompt) # user_prompt を渡す
-                for metric_name, metric_value in metrics.items():
-                    print(f"      {metric_name.replace('_', ' ').title()}: {metric_value}")
-    
-    print("\n--- レポート生成が完了しました ---")
+    report_content = "# A/Bテストレポート\n\n"
+    report_content += f"生成日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    report_content += "## テスト概要\n"
+    report_content += f"設定ファイル: `{args.config}`\n"
+    report_content += f"プロンプト言語A/Bテスト有効: {config.get('prompt_language_test_enabled', False)}\n\n"
 
-if __name__ == "__main__":
-    # main 関数から user_prompt を渡す
-    # ここでは仮のユーザープロンプトを使用
-    # 実際には、CLI引数などから取得する必要がある
-    generate_reports("日本の少子高齢化問題について議論してください")
+    for prompt_id, prompt_data in all_results.items():
+        report_content += f"### プロンプト: {prompt_id}\n\n"
+        
+        control_group_data = prompt_data.get("control", {}).get("run_1", {}) # run_1を仮定
+        dynamic_group_data = prompt_data.get("dynamic_prompt_group", {}).get("run_1", {}) # run_1を仮定
+
+        # メトリクス抽出
+        control_metrics = extract_metrics(control_group_data.get("discussionLog", []))
+        dynamic_metrics = extract_metrics(dynamic_group_data.get("discussionLog", []))
+
+        report_content += "#### 評価指標\n"
+        report_content += "| 指標 | Control Group (日本語) | Dynamic Prompt Group (英語) |\n"
+        report_content += "|---|---|---|
+"
+        report_content += f"| 総応答文字数 | {control_metrics['total_response_length']} | {dynamic_metrics['total_response_length']} |\n"
+        report_content += f"| 平均応答時間 (ms) | {control_metrics['avg_response_time_ms']:.2f} | {dynamic_metrics['avg_response_time_ms']:.2f} |\n"
+        report_content += f"| LLM呼び出し回数 | {control_metrics['num_llm_calls']} | {dynamic_metrics['num_llm_calls']} |\n\n"
+
+        report_content += "#### LLM応答比較\n"
+        report_content += "##### Control Group (日本語)\n"
+        report_content += "```\n"
+        report_content += control_group_data.get("finalOutput", "N/A") + "\n"
+        report_content += "```\n\n"
+
+        report_content += "##### Dynamic Prompt Group (英語)\n"
+        report_content += "```\n"
+        report_content += dynamic_group_data.get("finalOutput", "N/A") + "\n"
+        report_content += "```\n\n"
+
+    if args.json:
+        # JSON出力モードの場合は、レポート内容もJSONの一部として含める
+        json_output = {
+            "report_metadata": {
+                "generated_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "config_file": args.config,
+                "prompt_language_test_enabled": config.get('prompt_language_test_enabled', False)
+            },
+            "test_results": all_results,
+            "report_content_markdown": report_content # Markdown形式のレポート内容
+        }
+        print(json.dumps(json_output, indent=2, ensure_ascii=False))
+    else:
+        print(report_content)
+
+if __name__ == '__main__':
+    main()

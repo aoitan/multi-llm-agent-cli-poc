@@ -6,4 +6,4 @@
 
 ## 関連タスク
 
-*   [タスク 5.3.1: レポート生成スクリプトの言語対応](task_5_3_1_adapt_report_generation_script_for_language_support.md)
+*   [x] [タスク 5.3.1: レポート生成スクリプトの言語対応](task_5_3_1_adapt_report_generation_script_for_language_support.md)

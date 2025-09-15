@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime
 from string import Template
 
-def run_llm_consultation(user_prompt: str, model1: str, model2: str, workflow_id: str = None, prompt_file: str = None):
+def run_llm_consultation(user_prompt: str, model1: str, model2: str, workflow_id: str = None, prompt_file: str = None, prompt_language: str = None):
     """Runs the LLM consultation and returns the final summary and discussion log."""
     command = [
         "node",
@@ -17,8 +17,16 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, workflow_id
     ]
     if workflow_id: # workflow_id があれば追加
         command.extend(["--workflow", workflow_id])
-    if prompt_file: # prompt_file があれば追加
-        command.extend(["--prompt-file", prompt_file])
+    # prompt_languageに基づいてprompt_fileを決定
+    if prompt_language == "english":
+        actual_prompt_file = "prompts/english_prompts.json"
+    elif prompt_language == "japanese":
+        actual_prompt_file = "prompts/default_prompts.json"
+    else:
+        actual_prompt_file = prompt_file # configで指定されたもの、またはデフォルト
+
+    if actual_prompt_file: # 決定されたprompt_fileがあれば追加
+        command.extend(["--prompt-file", actual_prompt_file])
     print(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
@@ -122,7 +130,8 @@ def main():
                         evaluation_models[0], 
                         evaluation_models[1], 
                         workflow_id=current_workflow_id,
-                        prompt_file=current_config_file
+                        prompt_file=current_config_file,
+                        prompt_language=group.get("prompt_language") # 追加
                     )
                 elif group_type == "dynamic":
                     scenario_based_selection = group.get("scenario_based_workflow_selection_enabled", False)
@@ -135,7 +144,8 @@ def main():
                         user_prompt, # ここで test_prompts から取得した user_prompt を使用
                         evaluation_models[0], 
                         evaluation_models[1],
-                        workflow_id=None # index.js が解決
+                        workflow_id=None, # index.js が解決
+                        prompt_language=group.get("prompt_language") # 追加
                     )
                 else:
                     print(f"Error: Unknown group type '{group_type}' for group '{group_id}'. Skipping.")
