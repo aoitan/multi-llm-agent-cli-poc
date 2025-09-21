@@ -35,6 +35,11 @@ async function main() {
       type: 'string',
       description: 'Path to a specific prompt file to use, bypassing scenario identification.',
     })
+    .showHelpOnFail(false) // エラー時にヘルプメッセージを表示しない
+    .exitProcess(false)   // エラー時にプロセスを終了しない
+    .scriptName('')       // スクリプト名を出力しない
+    .version(false)       // バージョンを出力しない
+    .help(false)          // ヘルプメッセージを出力しない
     .parse();
 
   const userPrompt = argv['user-prompt'] as string;
@@ -55,14 +60,18 @@ async function main() {
 
   try {
     if (specificPromptFile) { // --prompt-file が指定された場合
-      console.log(`Using specific prompt file: ${specificPromptFile}, bypassing scenario identification.`);
+      if (!jsonOutput) { // JSON出力でない場合のみログを出力
+        console.log(`Using specific prompt file: ${specificPromptFile}, bypassing scenario identification.`);
+      }
       prompts = await loadPromptFile(specificPromptFile);
       // specificPromptFile が指定された場合、workflowId は CLI オプションまたはデフォルト値を使用
       actualWorkflowId = workflowId;
     } else { // --prompt-file が指定されない場合、既存のシナリオ識別ロジックを使用
       // シナリオを識別
       const scenario = await identifyScenario(userPrompt); // 戻り値が Scenario オブジェクトに
-      console.log(`Identified scenario: ${scenario.id}`); // デバッグ用
+      if (!jsonOutput) { // JSON出力でない場合のみログを出力
+        console.log(`Identified scenario: ${scenario.id}`); // デバッグ用
+      }
 
       // 識別されたシナリオに基づいてプロンプトセットをロード
       prompts = await loadPromptSetByScenarioId(scenario.id);
@@ -80,17 +89,29 @@ async function main() {
     const workflowFilePath = path.resolve(process.cwd(), 'config', 'workflow_config.json');
     workflows = await loadWorkflowFile(workflowFilePath);
 
-  try {
+    const selectedWorkflow = workflows.workflows[actualWorkflowId];
+    if (!selectedWorkflow) {
+      throw new Error(`Workflow with ID '${actualWorkflowId}' not found in workflow_config.json.`);
+    }
+
     const initialInput = { "user_input": userPrompt };
+
+    // デバッグ用: APP_OLLAMA_URL の値を出力
+    if (!jsonOutput) {
+      console.log(`DEBUG: APP_OLLAMA_URL = ${process.env.APP_OLLAMA_URL}`);
+    }
+
     // orchestrateWorkflow にロードされたプロンプトセットを渡す
     const result = await orchestrateWorkflow(selectedWorkflow, initialInput, prompts, jsonOutput);
     if (jsonOutput) {
       console.log(JSON.stringify(result, null, 2));
     } else {
-      console.log(JSON.stringify(result.finalOutput, null, 2));
+      // JSON出力でない場合の処理をここに記述 (例: console.log(result.finalOutput);)
+      // 現在は何も出力しない設定なので、このままで良い
     }
   } catch (error) {
     console.error('An error occurred during workflow execution:', getErrorMessage(error));
+    process.exit(1); // エラー発生時はプロセスを終了
   }
 }
 

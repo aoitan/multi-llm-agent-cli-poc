@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-interface Scenario {
+export interface Scenario {
   id: string;
   name: string;
   description: string;
