@@ -17,13 +17,15 @@ class Agent {
   private model: string;
   private systemPrompt: string;
   private messages: Message[];
-  private temperature?: number; // Add temperature property
+  private temperature?: number;
+  private jsonOutput: boolean; // Add jsonOutput property
 
-  constructor(model: string, systemPrompt: string, temperature?: number) {
+  constructor(model: string, systemPrompt: string, temperature?: number, jsonOutput: boolean = false) { // Add jsonOutput to constructor
     this.model = model;
     this.systemPrompt = systemPrompt;
     this.messages = [{ role: 'system', content: systemPrompt }];
-    this.temperature = temperature; // Store temperature
+    this.temperature = temperature;
+    this.jsonOutput = jsonOutput; // Store jsonOutput
   }
 
   public async sendMessage(userMessage: string, onContent: (content: string) => void): Promise<string> {
@@ -44,7 +46,8 @@ class Agent {
         (error) => {
           reject(error);
         },
-        this.temperature // Pass temperature to chatWithOllama
+        this.temperature,
+        this.jsonOutput // Pass jsonOutput to chatWithOllama
       );
     });
 
@@ -87,9 +90,11 @@ export async function orchestrateWorkflow(
     }
 
     if (!jsonOutput) {
-      process.stdout.write(`
+      process.stdout.write(
+        `
 ## Step ${stepCounter}: ${currentStep.id} (${currentStep.type})
-`);
+`
+      );
     }
 
     if (currentStep.type === "agent_interaction") {
@@ -102,7 +107,7 @@ export async function orchestrateWorkflow(
       if (!systemPromptContent) {
         throw new Error(`System prompt '${agentRole.system_prompt_id}' not found for agent '${step.agent_id}'.`);
       }
-      const agent = new Agent(agentRole.model, systemPromptContent, agentRole.temperature);
+      const agent = new Agent(agentRole.model, systemPromptContent, agentRole.temperature, jsonOutput); // Pass jsonOutput to Agent constructor
 
       const promptTemplate = getPromptById(prompts.prompts, step.prompt_id)?.content;
       if (!promptTemplate) {
@@ -115,9 +120,11 @@ export async function orchestrateWorkflow(
         process.stdout.write(`Agent (${step.agent_id}) prompt:
 ${filledPrompt}
 `);
-        process.stdout.write(`
+        process.stdout.write(
+          `
 ### LLM Response (${agentRole.model}):
-`);
+`
+        );
       }
       const response = await agent.sendMessage(filledPrompt, (content) => {
         if (!jsonOutput) {
@@ -125,10 +132,12 @@ ${filledPrompt}
         }
       });
       if (!jsonOutput) {
-        process.stdout.write(`
+        process.stdout.write(
+          `
 
 --- End of LLM Response (${agentRole.model}) ---
-`);
+`
+        );
         process.stdout.write(`Timestamp: ${new Date().toISOString()}
 `);
       }
@@ -152,9 +161,11 @@ ${filledPrompt}
 
       for (const branch of step.agents_to_run) {
         if (!jsonOutput) {
-          process.stdout.write(`
+          process.stdout.write(
+            `
 ## Running parallel branch for agent: ${branch.agent_id}
-`);
+`
+          );
         }
         const agentRole = getAgentRoleById(prompts.agent_roles, branch.agent_id);
         if (!agentRole) {
@@ -164,7 +175,7 @@ ${filledPrompt}
         if (!systemPromptContent) {
           throw new Error(`System prompt '${agentRole.system_prompt_id}' not found for agent '${branch.agent_id}'.`);
         }
-        const agent = new Agent(agentRole.model, systemPromptContent, agentRole.temperature);
+        const agent = new Agent(agentRole.model, systemPromptContent, agentRole.temperature, jsonOutput); // Pass jsonOutput to Agent constructor
 
         const promptTemplate = getPromptById(prompts.prompts, branch.prompt_id)?.content;
         if (!promptTemplate) {
@@ -177,9 +188,11 @@ ${filledPrompt}
           process.stdout.write(`Agent (${branch.agent_id}) prompt:
 ${filledPrompt}
 `);
-          process.stdout.write(`
+          process.stdout.write(
+            `
 ### LLM Response (${agentRole.model}):
-`);
+`
+          );
         }
         const response = await agent.sendMessage(filledPrompt, (content) => {
           if (!jsonOutput) {
@@ -187,10 +200,12 @@ ${filledPrompt}
           }
         });
         if (!jsonOutput) {
-          process.stdout.write(`
+          process.stdout.write(
+            `
 
 --- End of LLM Response (${agentRole.model}) ---
-`);
+`
+          );
           process.stdout.write(`Timestamp: ${new Date().toISOString()}
 `);
         }
@@ -277,6 +292,7 @@ export async function runEnsemble(
         (error) => {
           reject(error);
         }
+        // jsonOutput は runEnsemble では使用しないため渡さない
       );
     });
     ensembleResponses.push(fullResponse);
@@ -288,7 +304,7 @@ export function fillTemplate(template: string, variables: { [key: string]: strin
   let result = template;
   for (const key in variables) {
     if (Object.prototype.hasOwnProperty.call(variables, key)) {
-      const placeholder = `\\$\{${key}\\}`;
+      const placeholder = `\\$\\{${key}\\}`;
       result = result.replace(new RegExp(placeholder, 'g'), variables[key]);
     }
   }

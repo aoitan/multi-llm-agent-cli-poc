@@ -18,8 +18,9 @@ export async function chatWithOllama(
   onDone: () => void,
   onError: (error: Error) => void,
   temperature?: number, // Add temperature parameter
+  jsonOutput: boolean = false // Add jsonOutput parameter with default false
 ): Promise<void> {
-  const baseUrl = (process.env.APP_OLLAMA_URL || 'http://localhost:11434').trim().replace(/\/$/, '');
+  const baseUrl = (process.env.APP_OLLAMA_URL || 'http://localhost:11434').trim().replace(/\/+$/, '');
   const chatEndpoint = `${baseUrl}/api/chat`;
 
   const startTime = process.hrtime.bigint();
@@ -76,11 +77,15 @@ export async function chatWithOllama(
             onDone();
             const endTime = process.hrtime.bigint();
             const durationMs = Number(endTime - startTime) / 1_000_000;
-            console.log(`Ollama API call to ${model} took ${durationMs.toFixed(2)} ms`);
+            if (!jsonOutput) { // Only log if not in JSON output mode
+              console.log(`Ollama API call to ${model} took ${durationMs.toFixed(2)} ms`);
+            }
             return;
           }
         } catch (parseError) {
-          console.warn('Failed to parse JSON chunk:', line, parseError);
+          if (!jsonOutput) { // Only warn if not in JSON output mode
+            console.warn('Failed to parse JSON chunk:', line, parseError);
+          }
           // This can happen if a chunk is a partial JSON object. 
           // We'll just wait for the next chunk to complete it.
         }
@@ -89,7 +94,9 @@ export async function chatWithOllama(
   } catch (error: any) {
     const endTime = process.hrtime.bigint();
     const durationMs = Number(endTime - startTime) / 1_000_000;
-    console.error(`Ollama API call to ${model} failed after ${durationMs.toFixed(2)} ms`);
+    if (!jsonOutput) { // Only log error if not in JSON output mode
+      console.error(`Ollama API call to ${model} failed after ${durationMs.toFixed(2)} ms`);
+    }
     onError(error);
   }
 }

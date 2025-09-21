@@ -29,7 +29,7 @@ describe('ab_test_runner.py language support', () => {
       const output = execSync(`python3 scripts/ab_test_runner.py ${commonCliOptions}`, { encoding: 'utf8' });
       expect(output).toContain('--- Running A/B Test for Prompt: PROMPT_1_SOCIAL_ISSUES ---');
       expect(output).toContain('--- Running Test Group: control (Type: static) for Prompt PROMPT_1_SOCIAL_ISSUES ---');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Test failed:', error.stdout, error.stderr);
       fail(error.message);
     }
@@ -45,7 +45,7 @@ describe('ab_test_runner.py language support', () => {
       const output = execSync(`python3 scripts/ab_test_runner.py ${commonCliOptions}`, { encoding: 'utf8' });
       expect(output).toContain('--- Running A/B Test for Prompt: PROMPT_1_SOCIAL_ISSUES ---');
       expect(output).toContain('--- Running Test Group: dynamic_prompt_group (Type: dynamic) for Prompt PROMPT_1_SOCIAL_ISSUES ---');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Test failed:', error.stdout, error.stderr);
       fail(error.message);
     }
