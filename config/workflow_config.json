@@ -2,8 +2,19 @@
   "workflows": {
     "code_review_and_refactor": {
       "description": "ユーザーからコードを受け取り、コードレビューエージェントがレビューし、そのフィードバックに基づいてリファクタリングエージェントがコードを修正します。",
-      "initial_step": "review_step",
+      "initial_step": "thinker_initial_step",
       "steps": [
+        {
+          "id": "thinker_initial_step",
+          "type": "agent_interaction",
+          "agent_id": "thinker_improver_agent",
+          "prompt_id": "THINKER_INITIAL_PROMPT_TEMPLATE",
+          "input_variables": {
+            "userPrompt": "user_input"
+          },
+          "output_variable": "thinker_initial_response",
+          "next_step": "review_step"
+        },
         {
           "id": "review_step",
           "type": "agent_interaction",
@@ -11,7 +22,7 @@
           "prompt_id": "REVIEWER_PROMPT_TEMPLATE",
           "input_variables": {
             "userPrompt": "user_input",
-            "lastThinkerImproverResponse": "user_input"
+            "lastThinkerImproverResponse": "thinker_initial_response"
           },
           "output_variable": "review_feedback",
           "next_step": "improver_step"
@@ -24,7 +35,7 @@
           "input_variables": {
             "userPrompt": "user_input",
             "lastReviewerResponse": "review_feedback",
-            "lastThinkerImproverResponse": "user_input"
+            "lastThinkerImproverResponse": "thinker_initial_response"
           },
           "output_variable": "refactored_code",
           "next_step": "end"
