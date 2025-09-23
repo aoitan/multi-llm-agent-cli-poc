@@ -1,5 +1,6 @@
 import { chatWithOllama } from './ollamaApi';
-import { PromptFileContent, getPromptById, getAgentRoleById, AgentRoleDefinition } from './utils/promptLoader';
+import { PromptFileContent, getPromptById, getAgentRoleById } from './utils/promptLoader';
+import { calculateJapaneseCharacterRatio, isLikelyJapanese } from './utils/languageUtils';
 
 interface Message {
   role: string;
@@ -11,6 +12,47 @@ interface DiscussionTurn {
   agent_role: string;
   prompt_sent: string;
   response_received: string;
+}
+
+interface LanguageGuardConfig {
+  agentId: string;
+  threshold: number;
+  maxAttempts: number;
+}
+
+const DEFAULT_JAPANESE_THRESHOLD = 0.3;
+const DEFAULT_RETRY_ATTEMPTS = 2;
+
+const LANGUAGE_GUARD_CONFIGS: LanguageGuardConfig[] = [
+  { agentId: 'reviewer_agent', threshold: 0.3, maxAttempts: 2 },
+  { agentId: 'thinker_improver_agent', threshold: 0.3, maxAttempts: 1 },
+  { agentId: 'summarizer_agent', threshold: 0.3, maxAttempts: 1 },
+];
+
+function getLanguageGuardConfig(agentId: string): LanguageGuardConfig | undefined {
+  return LANGUAGE_GUARD_CONFIGS.find((config) => config.agentId === agentId);
+}
+
+function requiresJapaneseOutput(...sources: Array<string | undefined>): boolean {
+  const combined = sources.filter(Boolean).join(' ').toLowerCase();
+  if (!combined) {
+    return false;
+  }
+
+  if (combined.includes('日本語')) {
+    return true;
+  }
+
+  return combined.includes('in japanese');
+}
+
+function buildJapaneseRewritePrompt(attempt: number): string {
+  return [
+    '直前の応答には日本語以外の要素が含まれています。',
+    '直前に返した内容と同じ意味を保ちながら、英語の単語や文章を含めずに完全に日本語で書き直してください。',
+    '必要に応じて語彙や表現を調整しても構いませんが、回答全体を日本語で提示してください。',
+    `再試行回数: ${attempt}`
+  ].join('\n');
 }
 
 class Agent {
@@ -116,42 +158,100 @@ export async function orchestrateWorkflow(
 
       const filledPrompt = fillTemplate(promptTemplate, resolveInputVariables(step.input_variables, context));
 
-      if (!jsonOutput) {
-        process.stdout.write(`Agent (${step.agent_id}) prompt:
-${filledPrompt}
-`);
-        process.stdout.write(
-          `
-### LLM Response (${agentRole.model}):
-`
-        );
-      }
-      const response = await agent.sendMessage(filledPrompt, (content) => {
+      const sendAgentPrompt = async (prompt: string, logLabel?: string): Promise<string> => {
         if (!jsonOutput) {
-          process.stdout.write(content);
+          process.stdout.write(`Agent (${step.agent_id}) prompt:
+${prompt}
+`);
+          const labelSuffix = logLabel ? ` ${logLabel}` : '';
+          process.stdout.write(
+            `
+### LLM Response (${agentRole.model})${labelSuffix}:
+`
+          );
         }
-      });
-      if (!jsonOutput) {
-        process.stdout.write(
-          `
+        const result = await agent.sendMessage(prompt, (content) => {
+          if (!jsonOutput) {
+            process.stdout.write(content);
+          }
+        });
+        if (!jsonOutput) {
+          process.stdout.write(
+            `
 
 --- End of LLM Response (${agentRole.model}) ---
 `
-        );
-        process.stdout.write(`Timestamp: ${new Date().toISOString()}
+          );
+          process.stdout.write(`Timestamp: ${new Date().toISOString()}
 `);
-      }
+        }
+        return result;
+      };
 
-      if (step.output_variable) {
-        context[step.output_variable] = response;
-      }
+      const initialResponse = await sendAgentPrompt(filledPrompt);
+      let finalResponse = initialResponse;
 
       discussionLog.push({
         turn: `Step ${stepCounter} (${step.id})`,
         agent_role: agentRole.description,
         prompt_sent: filledPrompt,
-        response_received: response,
+        response_received: initialResponse,
       });
+
+      const languageGuardConfig = getLanguageGuardConfig(step.agent_id);
+      const shouldEnforceJapanese = languageGuardConfig && requiresJapaneseOutput(systemPromptContent, promptTemplate);
+
+      if (languageGuardConfig && shouldEnforceJapanese) {
+        const threshold = languageGuardConfig.threshold ?? DEFAULT_JAPANESE_THRESHOLD;
+        const maxAttempts = languageGuardConfig.maxAttempts ?? DEFAULT_RETRY_ATTEMPTS;
+
+        let attempt = 0;
+        let ratio = calculateJapaneseCharacterRatio(finalResponse);
+        let judgedJapanese = isLikelyJapanese(finalResponse, { threshold });
+
+        const appendLanguageLog = (label: string, currentRatio: number, isJapanese: boolean) => {
+          const suffix = label ? ` ${label}` : '';
+          discussionLog.push({
+            turn: `Step ${stepCounter} (${step.id}) language_check${suffix}`,
+            agent_role: '日本語判定ガード',
+            prompt_sent: `日本語判定: 比率=${currentRatio.toFixed(3)}, 閾値=${threshold}`,
+            response_received: isJapanese ? '日本語と判定' : '日本語以外と判定',
+          });
+        };
+
+        appendLanguageLog('', ratio, judgedJapanese);
+
+        while (!judgedJapanese && attempt < maxAttempts) {
+          attempt += 1;
+          const rewritePrompt = buildJapaneseRewritePrompt(attempt);
+          const retryResponse = await sendAgentPrompt(rewritePrompt, `(retry ${attempt})`);
+          finalResponse = retryResponse;
+
+          discussionLog.push({
+            turn: `Step ${stepCounter} (${step.id}) retry ${attempt}`,
+            agent_role: `${agentRole.description} (再指示)`,
+            prompt_sent: rewritePrompt,
+            response_received: retryResponse,
+          });
+
+          ratio = calculateJapaneseCharacterRatio(finalResponse);
+          judgedJapanese = isLikelyJapanese(finalResponse, { threshold });
+          appendLanguageLog(`retry ${attempt}`, ratio, judgedJapanese);
+        }
+
+        if (!judgedJapanese) {
+          discussionLog.push({
+            turn: `Step ${stepCounter} (${step.id}) language_check final`,
+            agent_role: '日本語判定ガード',
+            prompt_sent: `日本語判定: 比率=${ratio.toFixed(3)}, 閾値=${threshold}`,
+            response_received: '最終的に日本語として判定できませんでした',
+          });
+        }
+      }
+
+      if (step.output_variable) {
+        context[step.output_variable] = finalResponse;
+      }
 
       currentStepId = step.next_step;
 

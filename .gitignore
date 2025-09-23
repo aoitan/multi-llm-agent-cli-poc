@@ -42,3 +42,6 @@ doc/mvp_talk/
 
 # Evaluation Outputs
 eval/
+
+# Environment Variable
+.env
