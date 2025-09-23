@@ -1,3 +1,5 @@
+> **Deprecated:** この設計書はMVP初期の構想です。最新アーキテクチャは `doc/design/workflow_architecture_overview.md` を参照してください。
+
 # 統括・実行管理機能（オーケストレーター）設計書 (MVP範囲)
 
 ## 概要
