@@ -20,7 +20,7 @@
 
 ## 検証 / テスト
 - `python3 -m pytest scripts`
-- 手動での `generate_reports.py` 実行確認 (必要に応じて)
+- 手動での `generate_reports.py` 動作確認 (必要に応じて)
 
 ## アウトプット
 - 更新された `scripts/generate_reports.py`, `scripts/generate_mapping.py`
