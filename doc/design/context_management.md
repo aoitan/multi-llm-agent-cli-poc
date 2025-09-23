@@ -1,3 +1,5 @@
+> **Deprecated:** この設計書はMVP初期の構想です。最新のコンテキスト共有仕様は `doc/design/workflow_architecture_overview.md` を参照してください。
+
 # コンテキスト・情報共有の仕組み（神経系）設計書 (MVP範囲)
 
 ## 概要
