@@ -7,7 +7,7 @@ describe('ab_test_runner.py language support', () => {
   const originalConfigContent = fs.readFileSync(configPath, 'utf8');
 
   // 共通のコマンドラインオプションを変数として定義
-  const commonCliOptions = `"テストプロンプト" --config ${configPath} --runs 0`;
+  const commonCliOptions = `"テストプロンプト" --config "${configPath}" --runs 0`;
 
   beforeEach(() => {
     // テストごとにab_test_config.jsonをリセット

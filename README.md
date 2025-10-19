@@ -91,7 +91,7 @@ npm start -- --user-prompt "技術的な質問です" --prompt-file prompts/tech
 
 ## テスト
 
-- `npm test` : Jest による TypeScript テストと、A/B テスト関連の Python スクリプトを併用した統合テストを実行します。`npm run build` 済みであること、および Python 仮想環境を有効化している場合は `source .venv/bin/activate` を忘れずに行ってください。
+- `npm test` : Jest による TypeScript テストと、A/B テスト関連の Python スクリプトを併用した統合テストを実行します。`npm run build` 済みであることに加え、テスト実行前に `source .venv/bin/activate` で Python 仮想環境を有効化する必要があります。
 - `python3 scripts/generate_reports.test.py` : Python のユニットテストを個別に実行する場合に利用します。
 
 ## プロジェクト構造

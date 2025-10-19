@@ -6,7 +6,7 @@ VENV_PATH="$PROJECT_ROOT/.venv"
 PYTHON_BIN="${PYTHON:-python3}"
 
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-  echo "Error: python3 is required but was not found on PATH." >&2
+  echo "Error: $PYTHON_BIN is required but was not found on PATH." >&2
   exit 1
 fi
 
@@ -16,6 +16,7 @@ if [[ ! -d "$VENV_PATH" ]]; then
 fi
 # shellcheck disable=SC1090
 source "$VENV_PATH/bin/activate"
+python -m pip install --upgrade pip
 if [[ -f "$PROJECT_ROOT/requirements.txt" ]]; then
   echo "Installing Python dependencies from requirements.txt"
   python -m pip install -r "$PROJECT_ROOT/requirements.txt"
