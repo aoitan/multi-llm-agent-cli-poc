@@ -14,10 +14,12 @@
 -   **CLIインターフェース**: 豊富なオプション (`--workflow`, `--json`, `--prompt-file`など) を提供し、柔軟な実行を可能にします。
 -   **会話の要約**: 全ての対話が終了した後、会話内容と最初のユーザープロンプトを基に、最終的な要約を生成します。
 
-## インストール
+## セットアップ
 
-1.  **Node.jsとnpmのインストール**:
-    お使いのシステムにNode.jsとnpmがインストールされていることを確認してください。
+1.  **前提条件**:
+    - Node.js と npm がインストールされていること
+    - Python 3.9 以上がインストールされていること
+    - （A/B テスト機能を使う場合）ローカルで Ollama が利用可能で、使用したいモデルをプル済みであること
 
 2.  **リポジトリのクローン**:
     ```bash
@@ -25,14 +27,38 @@
     cd multi-llm-agent-cli-poc
     ```
 
-3.  **依存関係のインストール**:
+3.  **セットアップスクリプトの実行**:
     ```bash
-    npm install
+    ./scripts/setup_environment.sh
+    ```
+    - `.venv/` に Python 仮想環境が作成され、`requirements.txt` に記載された依存関係がインストールされます。
+    - Node.js の依存関係がインストールされ、`npm run build` が実行されて `dist/` が生成されます。
+    - Jest の `ab_test_runner` 系テストは `scripts/ab_test_runner.py` を経由して `node dist/index.js` を呼び出すため、ビルドされていない状態では失敗します。セットアップスクリプトはこの手順を自動化しています。
+
+4.  **仮想環境の有効化（任意）**:
+    ```bash
+    source .venv/bin/activate
     ```
 
-4.  **Ollamaのセットアップ**:
+5.  **Ollamaのセットアップ（任意機能）**:
     Ollamaをインストールし、ローカルで実行していることを確認してください。また、使用したいLLMモデルをプルしておいてください。
     例: `ollama pull llama3:8b`
+
+### 手動セットアップを行う場合
+
+セットアップスクリプトを利用できない環境では、以下を順番に実行してください。
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt  # 追加のPython依存がある場合
+
+npm install
+npm run build
+```
+
+TypeScript のビルド (`npm run build`) を忘れると、`npm test` で Python スクリプト経由のテストが失敗する点に注意してください。
 
 ## 使用方法
 
@@ -62,6 +88,11 @@ npm start -- --user-prompt "新しい機能のアイデアをください" --jso
 # 特定のプロンプトファイルを使用して実行
 npm start -- --user-prompt "技術的な質問です" --prompt-file prompts/technology_prompts.json
 ```
+
+## テスト
+
+- `npm test` : Jest による TypeScript テストと、A/B テスト関連の Python スクリプトを併用した統合テストを実行します。`npm run build` 済みであることに加え、テスト実行前に `source .venv/bin/activate` で Python 仮想環境を有効化する必要があります。
+- `python3 scripts/generate_reports.test.py` : Python のユニットテストを個別に実行する場合に利用します。
 
 ## プロジェクト構造
 

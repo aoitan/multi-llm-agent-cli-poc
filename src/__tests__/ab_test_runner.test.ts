@@ -7,7 +7,7 @@ describe('ab_test_runner.py language support', () => {
   const originalConfigContent = fs.readFileSync(configPath, 'utf8');
 
   // 共通のコマンドラインオプションを変数として定義
-  const commonCliOptions = `--json "テストプロンプト" --config ${configPath}`;
+  const commonCliOptions = `"テストプロンプト" --config "${configPath}" --runs 0`;
 
   beforeEach(() => {
     // テストごとにab_test_config.jsonをリセット
@@ -49,5 +49,20 @@ describe('ab_test_runner.py language support', () => {
       console.error('Test failed:', error.stdout, error.stderr);
       fail(error.message);
     }
+  });
+
+  it('should return JSON output when --json flag is used', () => {
+    const output = execSync(
+      `python3 scripts/ab_test_runner.py --json ${commonCliOptions}`,
+      { encoding: 'utf8' }
+    );
+
+    const trimmed = output.trim();
+    expect(trimmed.startsWith('{')).toBe(true);
+
+    const parsed = JSON.parse(trimmed);
+    expect(parsed).toHaveProperty('PROMPT_1_SOCIAL_ISSUES');
+    expect(parsed.PROMPT_1_SOCIAL_ISSUES).toHaveProperty('control');
+    expect(parsed.PROMPT_1_SOCIAL_ISSUES).toHaveProperty('dynamic_prompt_group');
   });
 });
