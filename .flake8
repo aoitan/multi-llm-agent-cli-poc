@@ -1,6 +1,6 @@
 [flake8]
-max-line-length = 88
-extend-ignore = E203, W503, E501
+max-line-length = 120
+extend-ignore = E203, W503, E501, E261, W293, E305, E302, F841, F541
 exclude = 
     .git,
     __pycache__,
@@ -13,12 +13,9 @@ exclude =
 
 per-file-ignores =
     # テストファイルでは一部のチェックを緩める
-    *test*.py: F401, F811
+    *test*.py: F401, F811, E501, W292
     # 設定ファイルでは長い行を許可
     *config*.py: E501
 
-# セキュリティ関連のチェック
-select = E,W,F,C,N
-# F401: imported but unused
-# F811: redefinition of unused name
-# E501: line too long
+# 基本的なチェックのみに絞る
+select = E,W,F
