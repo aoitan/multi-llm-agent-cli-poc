@@ -10,6 +10,14 @@ def logging(msg: str, is_json: bool):
     if not is_json:
         print(msg)
 
+
+def emit_error(message: str, is_json: bool) -> None:
+    """Emit an error message respecting the --json flag."""
+    if is_json:
+        print(json.dumps({"error": {"message": message}}, ensure_ascii=False))
+    else:
+        logging(message, is_json)
+
 def extract_metrics(discussion_log: list) -> dict:
     """
     discussionLogから応答の長さとLLMの応答速度を抽出する。
@@ -54,13 +62,32 @@ def main():
         logging(f"Error: Config file not found: {args.config}. Exiting.", args.json)
         return
 
+    test_prompts = config.get("test_prompts", [])
+    if not isinstance(test_prompts, list) or not test_prompts:
+        emit_error("Error: 'test_prompts' not found or empty in config. Exiting.", args.json)
+        return
+
+    first_prompt = test_prompts[0]
+    if not isinstance(first_prompt, dict):
+        emit_error("Error: The first entry in 'test_prompts' must be an object with prompt metadata.", args.json)
+        return
+
+    if (
+        "user_prompt" not in first_prompt
+        or not isinstance(first_prompt["user_prompt"], str)
+        or not first_prompt["user_prompt"].strip()
+    ):
+        emit_error("Error: The first entry in 'test_prompts' must include a non-empty user_prompt.", args.json)
+        return
+    user_prompt = first_prompt["user_prompt"]
+
     # ab_test_runner.pyをsubprocessで実行し、その出力をキャプチャする
     evaluation_models = config.get("evaluation_models", ["llama3:8b", "llama3:8b"])
     ab_test_runner_command = [
         "python3",
         "scripts/ab_test_runner.py",
         "--json",
-        config.get("test_prompts", [{}])[0].get("user_prompt", ""), # user_prompt
+        user_prompt,
         "--config", args.config, # --config オプション
         "--model1", evaluation_models[0], # --model1 オプションを追加
         "--model2", evaluation_models[1]  # --model2 オプションを追加
