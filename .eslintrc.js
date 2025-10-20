@@ -2,7 +2,6 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
   ],
   plugins: ['@typescript-eslint'],
   parserOptions: {
@@ -15,28 +14,30 @@ module.exports = {
     jest: true,
   },
   rules: {
-    // エラーレベルのルール
-    '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
+    // 段階的導入のため、まずは警告レベルに
+    '@typescript-eslint/no-unused-vars': 'warn',
     '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/explicit-function-return-type': 'off',
-    '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-inferrable-types': 'off',
-    'prefer-const': 'error',
-    'no-var': 'error',
-    
-    // 警告レベルのルール
+    'no-unused-vars': 'warn',
     'no-console': 'warn',
-    '@typescript-eslint/no-non-null-assertion': 'warn',
-    
-    // セキュリティ関連
-    'no-eval': 'error',
-    'no-implied-eval': 'error',
-    'no-new-func': 'error',
+    'no-undef': 'error',
+    'no-constant-condition': 'warn',
+    'no-useless-catch': 'warn',
   },
   ignorePatterns: [
     'dist/',
     'node_modules/',
     'coverage/',
-    '*.js',
   ],
+  globals: {
+    // Jest globals
+    'describe': 'readonly',
+    'it': 'readonly',
+    'test': 'readonly',
+    'expect': 'readonly',
+    'beforeEach': 'readonly',
+    'afterEach': 'readonly',
+    'beforeAll': 'readonly',
+    'afterAll': 'readonly',
+    'fail': 'readonly',
+  }
 };

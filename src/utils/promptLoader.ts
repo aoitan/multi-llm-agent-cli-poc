@@ -90,7 +90,11 @@ export async function loadPromptFile(filePath: string): Promise<PromptFileConten
 
     // プロンプト定義のバリデーション
     for (const prompt of content.prompts) {
-      if (typeof prompt.id !== 'string' || typeof prompt.description !== 'string' || typeof prompt.content !== 'string') {
+      if (
+        typeof prompt.id !== 'string' ||
+        typeof prompt.description !== 'string' ||
+        typeof prompt.content !== 'string'
+      ) {
         throw new Error('Invalid prompt definition');
       }
     }
@@ -105,7 +109,8 @@ export async function loadPromptSetByScenarioId(scenarioId: string): Promise<Pro
   const scenarioConfig = await loadScenarioConfig();
   const promptFilePath =
     scenarioConfig.scenarios.find(s => s.id === scenarioId)?.prompt_file_path ||
-    scenarioConfig.scenarios.find(s => s.id === scenarioConfig.default_scenario_id)?.prompt_file_path;
+    scenarioConfig.scenarios.find(s => s.id === scenarioConfig.default_scenario_id)
+      ?.prompt_file_path;
 
   if (!promptFilePath) {
     throw new Error(`Prompt file path not found for scenario: ${scenarioId}`);
@@ -120,7 +125,10 @@ export async function loadPromptSetByScenarioId(scenarioId: string): Promise<Pro
  * @param id 検索するプロンプトのID
  * @returns PromptDefinition | undefined 見つかったプロンプト定義、またはundefined
  */
-export function getPromptById(prompts: PromptDefinition[], id: string): PromptDefinition | undefined {
+export function getPromptById(
+  prompts: PromptDefinition[],
+  id: string
+): PromptDefinition | undefined {
   return prompts.find(prompt => prompt.id === id);
 }
 

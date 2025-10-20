@@ -30,7 +30,7 @@ const LANGUAGE_GUARD_CONFIGS: LanguageGuardConfig[] = [
 ];
 
 function getLanguageGuardConfig(agentId: string): LanguageGuardConfig | undefined {
-  return LANGUAGE_GUARD_CONFIGS.find((config) => config.agentId === agentId);
+  return LANGUAGE_GUARD_CONFIGS.find(config => config.agentId === agentId);
 }
 
 function requiresJapaneseOutput(...sources: Array<string | undefined>): boolean {
@@ -51,7 +51,7 @@ function buildJapaneseRewritePrompt(attempt: number): string {
     '直前の応答には日本語以外の要素が含まれています。',
     '直前に返した内容と同じ意味を保ちながら、英語の単語や文章を含めずに完全に日本語で書き直してください。',
     '必要に応じて語彙や表現を調整しても構いませんが、回答全体を日本語で提示してください。',
-    `再試行回数: ${attempt}`
+    `再試行回数: ${attempt}`,
   ].join('\n');
 }
 
@@ -62,7 +62,13 @@ class Agent {
   private temperature?: number;
   private jsonOutput: boolean; // Add jsonOutput property
 
-  constructor(model: string, systemPrompt: string, temperature?: number, jsonOutput: boolean = false) { // Add jsonOutput to constructor
+  constructor(
+    model: string,
+    systemPrompt: string,
+    temperature?: number,
+    jsonOutput: boolean = false
+  ) {
+    // Add jsonOutput to constructor
     this.model = model;
     this.systemPrompt = systemPrompt;
     this.messages = [{ role: 'system', content: systemPrompt }];
@@ -70,7 +76,10 @@ class Agent {
     this.jsonOutput = jsonOutput; // Store jsonOutput
   }
 
-  public async sendMessage(userMessage: string, onContent: (content: string) => void): Promise<string> {
+  public async sendMessage(
+    userMessage: string,
+    onContent: (content: string) => void
+  ): Promise<string> {
     this.messages.push({ role: 'user', content: userMessage });
     let agentResponse = '';
 
@@ -78,14 +87,14 @@ class Agent {
       chatWithOllama(
         this.model,
         this.messages,
-        (contentChunk) => {
+        contentChunk => {
           agentResponse += contentChunk;
           onContent(contentChunk);
         },
         () => {
           resolve();
         },
-        (error) => {
+        error => {
           reject(error);
         },
         this.temperature,
@@ -107,9 +116,13 @@ class Agent {
   }
 }
 
-
-
-import { WorkflowDefinition, WorkflowStep, AgentInteractionStep, MultiAgentInteractionStep, InputVariable } from './utils/workflowLoader';
+import {
+  WorkflowDefinition,
+  WorkflowStep,
+  AgentInteractionStep,
+  MultiAgentInteractionStep,
+  InputVariable,
+} from './utils/workflowLoader';
 
 export async function orchestrateWorkflow(
   workflow: WorkflowDefinition,
@@ -123,7 +136,7 @@ export async function orchestrateWorkflow(
   let currentStepId: string | undefined = workflow.initial_step;
   let stepCounter = 0;
 
-  while (currentStepId && currentStepId !== "end") {
+  while (currentStepId && currentStepId !== 'end') {
     stepCounter++;
     const currentStep = workflow.steps.find(step => step.id === currentStepId);
 
@@ -139,24 +152,37 @@ export async function orchestrateWorkflow(
       );
     }
 
-    if (currentStep.type === "agent_interaction") {
+    if (currentStep.type === 'agent_interaction') {
       const step = currentStep as AgentInteractionStep;
       const agentRole = getAgentRoleById(prompts.agent_roles, step.agent_id);
       if (!agentRole) {
         throw new Error(`Agent role '${step.agent_id}' not found.`);
       }
-      const systemPromptContent = getPromptById(prompts.prompts, agentRole.system_prompt_id)?.content;
+      const systemPromptContent = getPromptById(
+        prompts.prompts,
+        agentRole.system_prompt_id
+      )?.content;
       if (!systemPromptContent) {
-        throw new Error(`System prompt '${agentRole.system_prompt_id}' not found for agent '${step.agent_id}'.`);
+        throw new Error(
+          `System prompt '${agentRole.system_prompt_id}' not found for agent '${step.agent_id}'.`
+        );
       }
-      const agent = new Agent(agentRole.model, systemPromptContent, agentRole.temperature, jsonOutput); // Pass jsonOutput to Agent constructor
+      const agent = new Agent(
+        agentRole.model,
+        systemPromptContent,
+        agentRole.temperature,
+        jsonOutput
+      ); // Pass jsonOutput to Agent constructor
 
       const promptTemplate = getPromptById(prompts.prompts, step.prompt_id)?.content;
       if (!promptTemplate) {
         throw new Error(`Prompt template '${step.prompt_id}' not found.`);
       }
 
-      const filledPrompt = fillTemplate(promptTemplate, resolveInputVariables(step.input_variables, context));
+      const filledPrompt = fillTemplate(
+        promptTemplate,
+        resolveInputVariables(step.input_variables, context)
+      );
 
       const sendAgentPrompt = async (prompt: string, logLabel?: string): Promise<string> => {
         if (!jsonOutput) {
@@ -170,7 +196,7 @@ ${prompt}
 `
           );
         }
-        const result = await agent.sendMessage(prompt, (content) => {
+        const result = await agent.sendMessage(prompt, content => {
           if (!jsonOutput) {
             process.stdout.write(content);
           }
@@ -199,7 +225,8 @@ ${prompt}
       });
 
       const languageGuardConfig = getLanguageGuardConfig(step.agent_id);
-      const shouldEnforceJapanese = languageGuardConfig && requiresJapaneseOutput(systemPromptContent, promptTemplate);
+      const shouldEnforceJapanese =
+        languageGuardConfig && requiresJapaneseOutput(systemPromptContent, promptTemplate);
 
       if (languageGuardConfig && shouldEnforceJapanese) {
         const threshold = languageGuardConfig.threshold ?? DEFAULT_JAPANESE_THRESHOLD;
@@ -254,8 +281,7 @@ ${prompt}
       }
 
       currentStepId = step.next_step;
-
-    } else if (currentStep.type === "multi_agent_interaction") {
+    } else if (currentStep.type === 'multi_agent_interaction') {
       const step = currentStep as MultiAgentInteractionStep;
       const parallelResponses: { [key: string]: string } = {};
 
@@ -271,18 +297,31 @@ ${prompt}
         if (!agentRole) {
           throw new Error(`Agent role '${branch.agent_id}' not found.`);
         }
-        const systemPromptContent = getPromptById(prompts.prompts, agentRole.system_prompt_id)?.content;
+        const systemPromptContent = getPromptById(
+          prompts.prompts,
+          agentRole.system_prompt_id
+        )?.content;
         if (!systemPromptContent) {
-          throw new Error(`System prompt '${agentRole.system_prompt_id}' not found for agent '${branch.agent_id}'.`);
+          throw new Error(
+            `System prompt '${agentRole.system_prompt_id}' not found for agent '${branch.agent_id}'.`
+          );
         }
-        const agent = new Agent(agentRole.model, systemPromptContent, agentRole.temperature, jsonOutput); // Pass jsonOutput to Agent constructor
+        const agent = new Agent(
+          agentRole.model,
+          systemPromptContent,
+          agentRole.temperature,
+          jsonOutput
+        ); // Pass jsonOutput to Agent constructor
 
         const promptTemplate = getPromptById(prompts.prompts, branch.prompt_id)?.content;
         if (!promptTemplate) {
           throw new Error(`Prompt template '${branch.prompt_id}' not found.`);
         }
 
-        const filledPrompt = fillTemplate(promptTemplate, resolveInputVariables(branch.input_variables, context));
+        const filledPrompt = fillTemplate(
+          promptTemplate,
+          resolveInputVariables(branch.input_variables, context)
+        );
 
         if (!jsonOutput) {
           process.stdout.write(`Agent (${branch.agent_id}) prompt:
@@ -294,7 +333,7 @@ ${filledPrompt}
 `
           );
         }
-        const response = await agent.sendMessage(filledPrompt, (content) => {
+        const response = await agent.sendMessage(filledPrompt, content => {
           if (!jsonOutput) {
             process.stdout.write(content);
           }
@@ -324,7 +363,6 @@ ${filledPrompt}
       // Collect all parallel responses into context
       Object.assign(context, parallelResponses);
       currentStepId = step.next_step;
-
     } else {
       throw new Error(`Unknown step type: ${(currentStep as WorkflowStep).type}`);
     }
@@ -333,29 +371,38 @@ ${filledPrompt}
   return { finalOutput: context, discussionLog };
 }
 
-function resolveInputVariables(inputVariables: InputVariable, context: { [key: string]: string }): { [key: string]: string } {
+function resolveInputVariables(
+  inputVariables: InputVariable,
+  context: { [key: string]: string }
+): { [key: string]: string } {
   const resolved: { [key: string]: string } = {};
   for (const key in inputVariables) {
     if (Object.prototype.hasOwnProperty.call(inputVariables, key)) {
       const source = inputVariables[key];
       if (Array.isArray(source)) {
-        resolved[key] = source.map(s => {
-          if (s === "user_input") {
-            if (!context["user_input"]) {
-              throw new Error(`Input variable '${key}' expects 'user_input' but it's not provided in initial context.`);
+        resolved[key] = source
+          .map(s => {
+            if (s === 'user_input') {
+              if (!context['user_input']) {
+                throw new Error(
+                  `Input variable '${key}' expects 'user_input' but it's not provided in initial context.`
+                );
+              }
+              return context['user_input'];
+            } else if (context[s] !== undefined) {
+              return context[s];
+            } else {
+              throw new Error(`Input variable '${key}' source '${s}' not found in context.`);
             }
-            return context["user_input"];
-          } else if (context[s] !== undefined) {
-            return context[s];
-          } else {
-            throw new Error(`Input variable '${key}' source '${s}' not found in context.`);
-          }
-        }).join('\n\n');
-      } else if (source === "user_input") {
-        if (!context["user_input"]) {
-          throw new Error(`Input variable '${key}' expects 'user_input' but it's not provided in initial context.`);
+          })
+          .join('\n\n');
+      } else if (source === 'user_input') {
+        if (!context['user_input']) {
+          throw new Error(
+            `Input variable '${key}' expects 'user_input' but it's not provided in initial context.`
+          );
         }
-        resolved[key] = context["user_input"];
+        resolved[key] = context['user_input'];
       } else if (context[source] !== undefined) {
         resolved[key] = context[source];
       } else {
@@ -366,11 +413,7 @@ function resolveInputVariables(inputVariables: InputVariable, context: { [key: s
   return resolved;
 }
 
-export async function runEnsemble(
-
-  prompt: string,
-  models: string[]
-): Promise<string[]> {
+export async function runEnsemble(prompt: string, models: string[]): Promise<string[]> {
   if (models.length === 0) {
     return [];
   }
@@ -383,13 +426,13 @@ export async function runEnsemble(
       chatWithOllama(
         model,
         messages,
-        (contentChunk) => {
+        contentChunk => {
           fullResponse += contentChunk;
         },
         () => {
           resolve();
         },
-        (error) => {
+        error => {
           reject(error);
         }
         // jsonOutput は runEnsemble では使用しないため渡さない

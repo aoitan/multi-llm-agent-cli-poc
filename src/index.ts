@@ -1,6 +1,10 @@
 import { orchestrateWorkflow } from './agent';
 import { loadPromptFile, PromptFileContent, loadPromptSetByScenarioId } from './utils/promptLoader';
-import { loadWorkflowFile, WorkflowConfigFileContent, WorkflowDefinition } from './utils/workflowLoader';
+import {
+  loadWorkflowFile,
+  WorkflowConfigFileContent,
+  WorkflowDefinition,
+} from './utils/workflowLoader';
 import { loadConfigFile, ConfigContent } from './utils/configLoader';
 import { getErrorMessage } from './utils/errorUtils';
 import { identifyScenario, Scenario } from './utils/scenarioIdentifier';
@@ -31,15 +35,16 @@ async function main() {
       description: 'Output results in JSON format',
       default: false,
     })
-    .option('prompt-file', { // 新しいオプションを追加
+    .option('prompt-file', {
+      // 新しいオプションを追加
       type: 'string',
       description: 'Path to a specific prompt file to use, bypassing scenario identification.',
     })
     .showHelpOnFail(false) // エラー時にヘルプメッセージを表示しない
-    .exitProcess(false)   // エラー時にプロセスを終了しない
-    .scriptName('')       // スクリプト名を出力しない
-    .version(false)       // バージョンを出力しない
-    .help(false)          // ヘルプメッセージを出力しない
+    .exitProcess(false) // エラー時にプロセスを終了しない
+    .scriptName('') // スクリプト名を出力しない
+    .version(false) // バージョンを出力しない
+    .help(false) // ヘルプメッセージを出力しない
     .parse();
 
   const userPrompt = argv['user-prompt'] as string;
@@ -59,17 +64,23 @@ async function main() {
   let actualWorkflowId: string;
 
   try {
-    if (specificPromptFile) { // --prompt-file が指定された場合
-      if (!jsonOutput) { // JSON出力でない場合のみログを出力
-        console.log(`Using specific prompt file: ${specificPromptFile}, bypassing scenario identification.`);
+    if (specificPromptFile) {
+      // --prompt-file が指定された場合
+      if (!jsonOutput) {
+        // JSON出力でない場合のみログを出力
+        console.log(
+          `Using specific prompt file: ${specificPromptFile}, bypassing scenario identification.`
+        );
       }
       prompts = await loadPromptFile(specificPromptFile);
       // specificPromptFile が指定された場合、workflowId は CLI オプションまたはデフォルト値を使用
       actualWorkflowId = workflowId;
-    } else { // --prompt-file が指定されない場合、既存のシナリオ識別ロジックを使用
+    } else {
+      // --prompt-file が指定されない場合、既存のシナリオ識別ロジックを使用
       // シナリオを識別
       const scenario = await identifyScenario(userPrompt); // 戻り値が Scenario オブジェクトに
-      if (!jsonOutput) { // JSON出力でない場合のみログを出力
+      if (!jsonOutput) {
+        // JSON出力でない場合のみログを出力
         console.log(`Identified scenario: ${scenario.id}`); // デバッグ用
       }
 
@@ -94,7 +105,7 @@ async function main() {
       throw new Error(`Workflow with ID '${actualWorkflowId}' not found in workflow_config.json.`);
     }
 
-    const initialInput = { "user_input": userPrompt };
+    const initialInput = { user_input: userPrompt };
 
     // デバッグ用: APP_OLLAMA_URL の値を出力
     if (!jsonOutput) {

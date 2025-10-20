@@ -7,7 +7,7 @@ export interface InputVariable {
 
 export interface AgentInteractionStep {
   id: string;
-  type: "agent_interaction";
+  type: 'agent_interaction';
   agent_id: string;
   prompt_id: string;
   input_variables: InputVariable;
@@ -24,7 +24,7 @@ export interface MultiAgentInteractionBranch {
 
 export interface MultiAgentInteractionStep {
   id: string;
-  type: "multi_agent_interaction";
+  type: 'multi_agent_interaction';
   agents_to_run: MultiAgentInteractionBranch[];
   next_step: string; // ステップID または "end"
 }
@@ -63,7 +63,6 @@ export async function loadWorkflowFile(filePath: string): Promise<WorkflowConfig
     }
 
     return parsedContent as WorkflowConfigFileContent;
-
   } catch (error) {
     throw error;
   }

@@ -2,7 +2,8 @@ export interface LanguageDetectionOptions {
   threshold?: number;
 }
 
-const JAPANESE_CHAR_PATTERN = /[\u3041-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\u3001-\u303F]/g;
+const JAPANESE_CHAR_PATTERN =
+  /[\u3041-\u309F\u30A0-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\u3001-\u303F]/g;
 
 /**
  * Calculates the ratio of characters that belong to typical Japanese ranges
@@ -14,14 +15,14 @@ export function calculateJapaneseCharacterRatio(input: string): number {
     return 0;
   }
 
-  const normalized = input.normalize("NFKC");
-  const characters = normalized.replace(/\s+/g, "");
+  const normalized = input.normalize('NFKC');
+  const characters = normalized.replace(/\s+/g, '');
   if (!characters) {
     return 0;
   }
 
   const matches = characters.match(JAPANESE_CHAR_PATTERN);
-  const japaneseCount = matches ? matches.join("").length : 0;
+  const japaneseCount = matches ? matches.join('').length : 0;
 
   if (japaneseCount === 0) {
     return 0;

@@ -15,30 +15,49 @@ describe('loadPromptFile', () => {
     fs.mkdirSync(testPromptsDir, { recursive: true });
 
     // 有効なプロンプトファイル
-    fs.writeFileSync(validPromptFilePath, JSON.stringify({
-      format_version: '1.0',
-      prompts: [
-        { id: 'test1', description: 'Test Prompt 1', content: 'Content 1' },
-        { id: 'test2', description: 'Test Prompt 2', content: 'Content 2' },
-      ],
-    }, null, 2));
+    fs.writeFileSync(
+      validPromptFilePath,
+      JSON.stringify(
+        {
+          format_version: '1.0',
+          prompts: [
+            { id: 'test1', description: 'Test Prompt 1', content: 'Content 1' },
+            { id: 'test2', description: 'Test Prompt 2', content: 'Content 2' },
+          ],
+        },
+        null,
+        2
+      )
+    );
 
     // 不正なJSON形式のファイル
     fs.writeFileSync(invalidJsonPath, '{ "format_version": "1.0", "prompts": [ }');
 
     // スキーマが不正なファイル (promptsが配列ではない)
-    fs.writeFileSync(invalidSchemaPath, JSON.stringify({
-      format_version: '1.0',
-      prompts: 'not_an_array',
-    }, null, 2));
+    fs.writeFileSync(
+      invalidSchemaPath,
+      JSON.stringify(
+        {
+          format_version: '1.0',
+          prompts: 'not_an_array',
+        },
+        null,
+        2
+      )
+    );
 
     // プロンプト定義が不正なファイル (idがない)
-    fs.writeFileSync(invalidPromptDefPath, JSON.stringify({
-      format_version: '1.0',
-      prompts: [
-        { description: 'Invalid Prompt', content: 'Content' },
-      ],
-    }, null, 2));
+    fs.writeFileSync(
+      invalidPromptDefPath,
+      JSON.stringify(
+        {
+          format_version: '1.0',
+          prompts: [{ description: 'Invalid Prompt', content: 'Content' }],
+        },
+        null,
+        2
+      )
+    );
   });
 
   afterAll(async () => {
@@ -50,7 +69,11 @@ describe('loadPromptFile', () => {
     const content = await loadPromptFile(validPromptFilePath);
     expect(content.format_version).toBe('1.0');
     expect(content.prompts).toHaveLength(2);
-    expect(content.prompts[0]).toEqual({ id: 'test1', description: 'Test Prompt 1', content: 'Content 1' });
+    expect(content.prompts[0]).toEqual({
+      id: 'test1',
+      description: 'Test Prompt 1',
+      content: 'Content 1',
+    });
   });
 
   it('should throw an error if the file does not exist', async () => {
