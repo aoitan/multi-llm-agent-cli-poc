@@ -1,0 +1,21 @@
+[flake8]
+max-line-length = 120
+extend-ignore = E203, W503, E501, E261, W293, E305, E302, F841, F541
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    build,
+    dist,
+    *.egg-info,
+    .pytest_cache
+
+per-file-ignores =
+    # テストファイルでは一部のチェックを緩める
+    *test*.py: F401, F811, E501, W292
+    # 設定ファイルでは長い行を許可
+    *config*.py: E501
+
+# 基本的なチェックのみに絞る
+select = E,W,F

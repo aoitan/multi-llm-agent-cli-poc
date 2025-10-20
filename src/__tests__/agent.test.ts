@@ -20,7 +20,9 @@ jest.mock('../ollamaApi', () => ({
       } else if (messages[0].content.includes('あなたは批判的レビュアーです。')) {
         // Reviewer agent
         responseContent = 'レビュアーのレビュー';
-      } else if (messages[0].content.includes('あなたは議論の結論を構造化して出力する専門家です。')) {
+      } else if (
+        messages[0].content.includes('あなたは議論の結論を構造化して出力する専門家です。')
+      ) {
         // Summarizer agent
         responseContent = '最終要約';
       }
@@ -55,13 +57,41 @@ describe.skip('conductConsultation', () => {
   const mockPrompts = {
     format_version: '1.0',
     prompts: [
-      { id: 'THINKER_IMPROVER_SYSTEM_PROMPT', description: '', content: 'あなたは思考者であり、指摘改善者です。' },
+      {
+        id: 'THINKER_IMPROVER_SYSTEM_PROMPT',
+        description: '',
+        content: 'あなたは思考者であり、指摘改善者です。',
+      },
       { id: 'REVIEWER_SYSTEM_PROMPT', description: '', content: 'あなたは批判的レビュアーです。' },
-      { id: 'THINKER_INITIAL_PROMPT_TEMPLATE', description: '', content: 'ユーザーのプロンプトに対して、あなたの素の思考で回答してください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nあなたの回答:' },
-      { id: 'REVIEWER_PROMPT_TEMPLATE', description: '', content: '以下の思考者の回答を批判的にレビューし、改善点を見つけてください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\n思考者の回答:\n${lastThinkerImproverResponse}' },
-      { id: 'IMPROVER_PROMPT_TEMPLATE', description: '', content: '以下のレビューを参考に、あなたの以前の回答を改善してください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nレビュー:\n${lastReviewerResponse}\n\nあなたの以前の回答:\n${lastThinkerImproverResponse}' },
-      { id: 'SUMMARIZER_SYSTEM_PROMPT', description: '', content: 'あなたは議論の結論を構造化して出力する専門家です。' },
-      { id: 'FINAL_REPORT_TEMPLATE', description: '', content: '以下のレポートテンプレートの各セクションを、提供された「最終改善案」の内容に基づいて埋めてください。\nユーザープロンプト: ${userPrompt}\n最終改善案: ${finalAnswer}' },
+      {
+        id: 'THINKER_INITIAL_PROMPT_TEMPLATE',
+        description: '',
+        content:
+          'ユーザーのプロンプトに対して、あなたの素の思考で回答してください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nあなたの回答:',
+      },
+      {
+        id: 'REVIEWER_PROMPT_TEMPLATE',
+        description: '',
+        content:
+          '以下の思考者の回答を批判的にレビューし、改善点を見つけてください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\n思考者の回答:\n${lastThinkerImproverResponse}',
+      },
+      {
+        id: 'IMPROVER_PROMPT_TEMPLATE',
+        description: '',
+        content:
+          '以下のレビューを参考に、あなたの以前の回答を改善してください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nレビュー:\n${lastReviewerResponse}\n\nあなたの以前の回答:\n${lastThinkerImproverResponse}',
+      },
+      {
+        id: 'SUMMARIZER_SYSTEM_PROMPT',
+        description: '',
+        content: 'あなたは議論の結論を構造化して出力する専門家です。',
+      },
+      {
+        id: 'FINAL_REPORT_TEMPLATE',
+        description: '',
+        content:
+          '以下のレポートテンプレートの各セクションを、提供された「最終改善案」の内容に基づいて埋めてください。\nユーザープロンプト: ${userPrompt}\n最終改善案: ${finalAnswer}',
+      },
     ],
   };
 
@@ -85,13 +115,20 @@ describe.skip('conductConsultation', () => {
       model1,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining(
-          fillTemplate(mockPrompts.prompts.find(p => p.id === 'THINKER_INITIAL_PROMPT_TEMPLATE')?.content || '', { userPrompt })
-        ) })
+        expect.objectContaining({
+          role: 'user',
+          content: expect.stringContaining(
+            fillTemplate(
+              mockPrompts.prompts.find(p => p.id === 'THINKER_INITIAL_PROMPT_TEMPLATE')?.content ||
+                '',
+              { userPrompt }
+            )
+          ),
+        }),
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
 
     // レビュアーのプロンプト (1サイクル目)
@@ -99,13 +136,19 @@ describe.skip('conductConsultation', () => {
       model2,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining(
-          fillTemplate(mockPrompts.prompts.find(p => p.id === 'REVIEWER_PROMPT_TEMPLATE')?.content || '', { userPrompt, lastThinkerImproverResponse: '思考者の最初の回答' })
-        ) })
+        expect.objectContaining({
+          role: 'user',
+          content: expect.stringContaining(
+            fillTemplate(
+              mockPrompts.prompts.find(p => p.id === 'REVIEWER_PROMPT_TEMPLATE')?.content || '',
+              { userPrompt, lastThinkerImproverResponse: '思考者の最初の回答' }
+            )
+          ),
+        }),
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
 
     // 思考者の改善プロンプト (1サイクル目)
@@ -113,13 +156,23 @@ describe.skip('conductConsultation', () => {
       model1,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining(
-          fillTemplate(mockPrompts.prompts.find(p => p.id === 'IMPROVER_PROMPT_TEMPLATE')?.content || '', { userPrompt, lastReviewerResponse: 'レビュアーのレビュー', lastThinkerImproverResponse: '思考者の最初の回答' })
-        ) })
+        expect.objectContaining({
+          role: 'user',
+          content: expect.stringContaining(
+            fillTemplate(
+              mockPrompts.prompts.find(p => p.id === 'IMPROVER_PROMPT_TEMPLATE')?.content || '',
+              {
+                userPrompt,
+                lastReviewerResponse: 'レビュアーのレビュー',
+                lastThinkerImproverResponse: '思考者の最初の回答',
+              }
+            )
+          ),
+        }),
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
 
     // レビュアーのプロンプト (2サイクル目)
@@ -127,13 +180,19 @@ describe.skip('conductConsultation', () => {
       model2,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining(
-          fillTemplate(mockPrompts.prompts.find(p => p.id === 'REVIEWER_PROMPT_TEMPLATE')?.content || '', { userPrompt, lastThinkerImproverResponse: '思考者の改善された回答' })
-        ) })
+        expect.objectContaining({
+          role: 'user',
+          content: expect.stringContaining(
+            fillTemplate(
+              mockPrompts.prompts.find(p => p.id === 'REVIEWER_PROMPT_TEMPLATE')?.content || '',
+              { userPrompt, lastThinkerImproverResponse: '思考者の改善された回答' }
+            )
+          ),
+        }),
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
 
     // 思考者の改善プロンプト (2サイクル目)
@@ -141,30 +200,46 @@ describe.skip('conductConsultation', () => {
       model1,
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({ role: 'user', content: expect.stringContaining(
-          fillTemplate(mockPrompts.prompts.find(p => p.id === 'IMPROVER_PROMPT_TEMPLATE')?.content || '', { userPrompt, lastReviewerResponse: 'レビュアーのレビュー', lastThinkerImproverResponse: '思考者の改善された回答' })
-        ) }) // 修正
+        expect.objectContaining({
+          role: 'user',
+          content: expect.stringContaining(
+            fillTemplate(
+              mockPrompts.prompts.find(p => p.id === 'IMPROVER_PROMPT_TEMPLATE')?.content || '',
+              {
+                userPrompt,
+                lastReviewerResponse: 'レビュアーのレビュー',
+                lastThinkerImproverResponse: '思考者の改善された回答',
+              }
+            )
+          ),
+        }), // 修正
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
 
     // 最終要約のプロンプト
     expect(mockChatWithOllama).toHaveBeenCalledWith(
       model1,
       expect.arrayContaining([
-        expect.objectContaining({ role: 'system', content: expect.stringContaining('あなたは議論の結論を構造化して出力する専門家です。') }), // Summarizer agent's system prompt
+        expect.objectContaining({
+          role: 'system',
+          content: expect.stringContaining('あなたは議論の結論を構造化して出力する専門家です。'),
+        }), // Summarizer agent's system prompt
         expect.objectContaining({
           role: 'user',
           content: expect.stringContaining(
-            fillTemplate(mockPrompts.prompts.find(p => p.id === 'FINAL_REPORT_TEMPLATE')?.content || '', { userPrompt, finalAnswer: '思考者の改善された回答' })
+            fillTemplate(
+              mockPrompts.prompts.find(p => p.id === 'FINAL_REPORT_TEMPLATE')?.content || '',
+              { userPrompt, finalAnswer: '思考者の改善された回答' }
+            )
           ),
         }),
       ]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
 
     // chatWithOllamaが合計6回呼び出されたことを確認 (初期思考者 + 2サイクル * 2エージェント + 要約)

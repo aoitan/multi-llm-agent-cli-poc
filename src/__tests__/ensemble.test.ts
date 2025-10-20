@@ -40,30 +40,24 @@ describe('runEnsemble', () => {
     expect(mockChatWithOllama).toHaveBeenCalledTimes(3);
     expect(mockChatWithOllama).toHaveBeenCalledWith(
       'model-a',
-      expect.arrayContaining([
-        expect.objectContaining({ role: 'user', content: prompt })
-      ]),
+      expect.arrayContaining([expect.objectContaining({ role: 'user', content: prompt })]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
     expect(mockChatWithOllama).toHaveBeenCalledWith(
       'model-b',
-      expect.arrayContaining([
-        expect.objectContaining({ role: 'user', content: prompt })
-      ]),
+      expect.arrayContaining([expect.objectContaining({ role: 'user', content: prompt })]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
     expect(mockChatWithOllama).toHaveBeenCalledWith(
       'model-c',
-      expect.arrayContaining([
-        expect.objectContaining({ role: 'user', content: prompt })
-      ]),
+      expect.arrayContaining([expect.objectContaining({ role: 'user', content: prompt })]),
       expect.any(Function), // onContent
       expect.any(Function), // onDone
-      expect.any(Function)  // onError
+      expect.any(Function) // onError
     );
   });
 

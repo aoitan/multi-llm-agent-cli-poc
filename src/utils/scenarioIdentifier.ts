@@ -41,7 +41,9 @@ export async function identifyScenario(userPrompt: string): Promise<Scenario> {
   // デフォルトシナリオのオブジェクトを検索して返す
   const defaultScenario = config.scenarios.find(s => s.id === config.default_scenario_id);
   if (!defaultScenario) {
-    throw new Error(`Default scenario with ID '${config.default_scenario_id}' not found in config.`);
+    throw new Error(
+      `Default scenario with ID '${config.default_scenario_id}' not found in config.`
+    );
   }
   return defaultScenario;
 }

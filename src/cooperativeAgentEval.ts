@@ -10,7 +10,9 @@ async function main() {
   const cycles = parseInt(args[3] || '2', 10); // Default to 2 cycles if not provided
 
   if (!userPrompt) {
-    console.error('Usage: ts-node src/cooperativeAgentEval.ts <your_prompt> [model1] [model2] [cycles]');
+    console.error(
+      'Usage: ts-node src/cooperativeAgentEval.ts <your_prompt> [model1] [model2] [cycles]'
+    );
     process.exit(1);
   }
 
@@ -28,7 +30,13 @@ async function main() {
   }
 
   try {
-    const { finalSummary, discussionLog } = await conductConsultation(userPrompt, model1, model2, prompts, cycles);
+    const { finalSummary, discussionLog } = await conductConsultation(
+      userPrompt,
+      model1,
+      model2,
+      prompts,
+      cycles
+    );
     console.log('\n--- Cooperative Agent Result ---');
 
     console.log(finalSummary);

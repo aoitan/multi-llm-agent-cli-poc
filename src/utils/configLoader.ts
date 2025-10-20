@@ -28,18 +28,17 @@ export async function loadConfigFile(filePath: string): Promise<ConfigContent> {
     try {
       parsedContent = JSON.parse(fileContent);
     } catch (jsonError: unknown) {
-      throw new Error(`Invalid JSON format in ${filePath}: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
+      throw new Error(
+        `Invalid JSON format in ${filePath}: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`
+      );
     }
 
     // スキーマ検証
-    if (
-      typeof parsedContent.prompt_file_path !== 'string'
-    ) {
+    if (typeof parsedContent.prompt_file_path !== 'string') {
       throw new Error(`Invalid schema in ${filePath}: Missing prompt_file_path.`);
     }
 
     return parsedContent as ConfigContent;
-
   } catch (error) {
     // エラーを再スロー
     throw error;
