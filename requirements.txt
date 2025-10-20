@@ -1,3 +1,4 @@
 # Python dependencies for the evaluation and reporting scripts.
-# All current scripts rely only on the Python standard library.
 # Add packages here (one per line) when external libraries are required.
+
+pytest
