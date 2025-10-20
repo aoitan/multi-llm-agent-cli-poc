@@ -102,18 +102,110 @@ class TestGenerateReports(unittest.TestCase):
                 self.assertIn("| 指標 | Control Group (日本語) | Dynamic Prompt Group (英語) |", printed_output)
                 self.assertIn("|---|---|---|", printed_output)
                 
-                # 応答文字列を変数に分けて期待値を計算
-                control_final_output = "日本語の最終出力です。"
-                dynamic_final_output = "This is the final output in English."
-                
-                self.assertIn(f"| 総応答文字数 | {len(control_final_output)} | {len(dynamic_final_output)} |", printed_output)
+                # 応答メトリクスの期待値を算出
+                control_metrics = extract_metrics(
+                    self.mock_ab_test_runner_output["PROMPT_1_SOCIAL_ISSUES"]["control"]["run_1"]["discussionLog"]
+                )
+                dynamic_metrics = extract_metrics(
+                    self.mock_ab_test_runner_output["PROMPT_1_SOCIAL_ISSUES"]["dynamic_prompt_group"]["run_1"]["discussionLog"]
+                )
+
+                self.assertIn(
+                    f"| 総応答文字数 | {control_metrics['total_response_length']} | {dynamic_metrics['total_response_length']} |",
+                    printed_output
+                )
                 self.assertIn("| 平均応答時間 (ms) | 100.00 | 150.00 |", printed_output)
                 self.assertIn("| LLM呼び出し回数 | 1 | 1 |", printed_output)
                 self.assertIn("#### LLM応答比較", printed_output)
                 self.assertIn("##### Control Group (日本語)", printed_output)
-                self.assertIn(control_final_output, printed_output)
+                self.assertIn("日本語の最終出力です。", printed_output)
                 self.assertIn("##### Dynamic Prompt Group (英語)", printed_output)
-                self.assertIn(dynamic_final_output, printed_output)
+                self.assertIn("This is the final output in English.", printed_output)
+
+    @patch('scripts.generate_reports.subprocess.run')
+    def test_missing_test_prompts_non_json(self, mock_subprocess_run):
+        config_without_prompts = dict(self.original_config_content)
+        config_without_prompts["test_prompts"] = []
+        with open(self.test_config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_without_prompts, f)
+
+        with patch('sys.argv', ['scripts/generate_reports.py', '--config', self.test_config_path]):
+            with patch('builtins.print') as mock_print:
+                main()
+
+        mock_subprocess_run.assert_not_called()
+        printed_output = " ".join(call.args[0] for call in mock_print.call_args_list)
+        self.assertIn("Error: 'test_prompts' not found or empty in config. Exiting.", printed_output)
+
+    @patch('scripts.generate_reports.subprocess.run')
+    def test_missing_test_prompts_json_mode(self, mock_subprocess_run):
+        config_without_prompts = dict(self.original_config_content)
+        config_without_prompts["test_prompts"] = []
+        with open(self.test_config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_without_prompts, f)
+
+        with patch('sys.argv', ['scripts/generate_reports.py', '--json', '--config', self.test_config_path]):
+            with patch('builtins.print') as mock_print:
+                main()
+
+        mock_subprocess_run.assert_not_called()
+        self.assertEqual(len(mock_print.call_args_list), 1)
+        error_payload = mock_print.call_args_list[0].args[0]
+        error_json = json.loads(error_payload)
+        self.assertEqual(
+            error_json,
+            {"error": {"message": "Error: 'test_prompts' not found or empty in config. Exiting."}}
+        )
+
+    @patch('scripts.generate_reports.subprocess.run')
+    def test_first_prompt_not_dict(self, mock_subprocess_run):
+        config_with_invalid_prompt = dict(self.original_config_content)
+        config_with_invalid_prompt["test_prompts"] = ["not-a-dict"]
+        with open(self.test_config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_with_invalid_prompt, f)
+
+        with patch('sys.argv', ['scripts/generate_reports.py', '--config', self.test_config_path]):
+            with patch('builtins.print') as mock_print:
+                main()
+
+        mock_subprocess_run.assert_not_called()
+        printed_output = " ".join(call.args[0] for call in mock_print.call_args_list)
+        self.assertIn("Error: The first entry in 'test_prompts' must be an object with prompt metadata.", printed_output)
+
+    @patch('scripts.generate_reports.subprocess.run')
+    def test_missing_user_prompt_key(self, mock_subprocess_run):
+        config_with_bad_prompt = dict(self.original_config_content)
+        config_with_bad_prompt["test_prompts"] = [{"id": "bad_prompt"}]
+        with open(self.test_config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_with_bad_prompt, f)
+
+        with patch('sys.argv', ['scripts/generate_reports.py', '--config', self.test_config_path]):
+            with patch('builtins.print') as mock_print:
+                main()
+
+        mock_subprocess_run.assert_not_called()
+        printed_output = " ".join(call.args[0] for call in mock_print.call_args_list)
+        self.assertIn("Error: The first entry in 'test_prompts' must include a non-empty user_prompt.", printed_output)
+
+    @patch('scripts.generate_reports.subprocess.run')
+    def test_blank_user_prompt_string_json_mode(self, mock_subprocess_run):
+        config_with_blank_prompt = dict(self.original_config_content)
+        config_with_blank_prompt["test_prompts"] = [{"id": "blank_prompt", "user_prompt": "   "}]
+        with open(self.test_config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_with_blank_prompt, f)
+
+        with patch('sys.argv', ['scripts/generate_reports.py', '--json', '--config', self.test_config_path]):
+            with patch('builtins.print') as mock_print:
+                main()
+
+        mock_subprocess_run.assert_not_called()
+        self.assertEqual(len(mock_print.call_args_list), 1)
+        error_payload = mock_print.call_args_list[0].args[0]
+        error_json = json.loads(error_payload)
+        self.assertEqual(
+            error_json,
+            {"error": {"message": "Error: The first entry in 'test_prompts' must include a non-empty user_prompt."}}
+        )
 
     def test_extract_metrics(self):
         response1_content = "Response 1. Ollama API call to llama3:8b took 100.50 ms"
