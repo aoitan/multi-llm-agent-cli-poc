@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - APP_OLLAMA_URL=http://ollama:11434
+      - NODE_ENV=production
+    volumes:
+      - ./config:/app/config:ro
+      - ./prompts:/app/prompts:ro
+      - ./eval:/app/eval
+    depends_on:
+      - ollama
+    networks:
+      - llm-network
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - llm-network
+
+  ci-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["npm", "run", "ci:check"]
+    environment:
+      - NODE_ENV=test
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - llm-network
+
+volumes:
+  ollama_data:
+
+networks:
+  llm-network:
+    driver: bridge
