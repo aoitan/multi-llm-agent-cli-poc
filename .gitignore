@@ -33,6 +33,9 @@ dist/
 *.swp
 .git_commit_message.txt
 local.prompts.md
+.serena/
+__pycache__/
+*.pyc
 
 # Blind Evaluation Outputs and Discussion Logs
 doc/blind_evaluation/
