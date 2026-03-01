@@ -14,7 +14,10 @@ interface ScenarioConfig {
   default_scenario_id: string;
 }
 
-const defaultScenarioConfigPath = path.join(__dirname, '../../config/scenario_config.json');
+const defaultScenarioConfigPath = path.resolve(
+  process.cwd(),
+  'config/scenario_config.json'
+);
 
 let scenarioConfigCache: ScenarioConfig | null = null;
 
@@ -24,7 +27,7 @@ function getScenarioConfigPath(): string {
 
 async function loadScenarioConfig(): Promise<ScenarioConfig> {
   const configPath = getScenarioConfigPath();
-  const shouldUseCache = configPath === defaultScenarioConfigPath;
+  const shouldUseCache = path.resolve(configPath) === path.resolve(defaultScenarioConfigPath);
 
   if (shouldUseCache && scenarioConfigCache) {
     return scenarioConfigCache;

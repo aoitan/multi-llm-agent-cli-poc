@@ -37,15 +37,19 @@ const mockScenarioConfigContent = `
 describe('identifyScenario', () => {
   let tempDir: string;
   let tempConfigPath: string;
-  const productionConfigPath = path.join(
-    __dirname,
-    '../../config/scenario_config.json'
+  const productionConfigPath = path.resolve(
+    process.cwd(),
+    'config/scenario_config.json'
   );
   let productionConfigExistedBeforeTest: boolean;
+  let productionConfigContentBeforeTest: string | null;
   let originalScenarioConfigPath: string | undefined;
 
   beforeEach(() => {
     productionConfigExistedBeforeTest = fs.existsSync(productionConfigPath);
+    productionConfigContentBeforeTest = productionConfigExistedBeforeTest
+      ? fs.readFileSync(productionConfigPath, 'utf8')
+      : null;
     originalScenarioConfigPath = process.env.SCENARIO_CONFIG_PATH;
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scenario-identifier-test-'));
     tempConfigPath = path.join(tempDir, 'scenario_config.json');
@@ -96,5 +100,11 @@ describe('identifyScenario', () => {
     expect(scenario.id).toBe('temporary_only');
     expect(fs.existsSync(tempConfigPath)).toBe(true);
     expect(fs.existsSync(productionConfigPath)).toBe(productionConfigExistedBeforeTest);
+
+    if (productionConfigExistedBeforeTest) {
+      expect(fs.readFileSync(productionConfigPath, 'utf8')).toBe(
+        productionConfigContentBeforeTest
+      );
+    }
   });
 });
