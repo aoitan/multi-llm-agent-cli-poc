@@ -14,17 +14,32 @@ interface ScenarioConfig {
   default_scenario_id: string;
 }
 
-let scenarioConfigCache: ScenarioConfig | null = null; // キャッシュ用の変数名を変更
+const defaultScenarioConfigPath = path.resolve(
+  process.cwd(),
+  'config/scenario_config.json'
+);
+
+let scenarioConfigCache: ScenarioConfig | null = null;
+
+function getScenarioConfigPath(): string {
+  return process.env.SCENARIO_CONFIG_PATH ?? defaultScenarioConfigPath;
+}
 
 async function loadScenarioConfig(): Promise<ScenarioConfig> {
-  if (scenarioConfigCache) {
+  const configPath = getScenarioConfigPath();
+  const shouldUseCache = path.resolve(configPath) === path.resolve(defaultScenarioConfigPath);
+
+  if (shouldUseCache && scenarioConfigCache) {
     return scenarioConfigCache;
   }
 
-  const configPath = path.join(__dirname, '../../config/scenario_config.json');
   const data = await fs.promises.readFile(configPath, 'utf8');
-  const parsedConfig: ScenarioConfig = JSON.parse(data); // 明示的に型をアサーション
-  scenarioConfigCache = parsedConfig;
+  const parsedConfig: ScenarioConfig = JSON.parse(data);
+
+  if (shouldUseCache) {
+    scenarioConfigCache = parsedConfig;
+  }
+
   return parsedConfig;
 }
 

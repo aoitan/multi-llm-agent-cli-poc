@@ -46,6 +46,7 @@ doc/mvp_talk/
 
 # Evaluation Outputs
 eval/
+checkpoint/
 
 # Environment Variable
 .env
