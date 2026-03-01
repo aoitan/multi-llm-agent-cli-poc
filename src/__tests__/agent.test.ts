@@ -1,258 +1,190 @@
-// import { conductConsultation } from '../agent';
+import { orchestrateWorkflow } from '../agent';
 import { chatWithOllama } from '../ollamaApi';
+import { PromptFileContent } from '../utils/promptLoader';
+import { WorkflowDefinition } from '../utils/workflowLoader';
 
-// chatWithOllamaをモック化
 jest.mock('../ollamaApi', () => ({
-  chatWithOllama: jest.fn((model, messages, onContent, onDone, onError) => {
-    // モックの応答を非同期でシミュレート
-    process.nextTick(() => {
-      const lastMessage = messages[messages.length - 1];
-      let responseContent = '';
-
-      // システムプロンプトに基づいて応答を決定
-      if (messages[0].content.includes('あなたは思考者であり、指摘改善者です。')) {
-        // Thinker/Improver agent
-        if (lastMessage.content.includes('ユーザーのプロンプト')) {
-          responseContent = '思考者の最初の回答';
-        } else if (lastMessage.content.includes('レビューを参考に、あなたの以前の回答を改善')) {
-          responseContent = '思考者の改善された回答';
-        }
-      } else if (messages[0].content.includes('あなたは批判的レビュアーです。')) {
-        // Reviewer agent
-        responseContent = 'レビュアーのレビュー';
-      } else if (
-        messages[0].content.includes('あなたは議論の結論を構造化して出力する専門家です。')
-      ) {
-        // Summarizer agent
-        responseContent = '最終要約';
-      }
-
-      // コンテンツをチャンクに分割してコールバックを呼び出す
-      const chunks = responseContent.split(''); // 1文字ずつチャンクとして扱う
-      for (const chunk of chunks) {
-        onContent(chunk);
-      }
-      onDone();
-    });
-  }),
+  chatWithOllama: jest.fn(),
 }));
 
-function fillTemplate(template: string, variables: { [key: string]: string }): string {
-  let result = template;
-  for (const key in variables) {
-    if (Object.prototype.hasOwnProperty.call(variables, key)) {
-      const placeholder = `\${${key}}`;
-      result = result.replace(new RegExp(placeholder, 'g'), variables[key]);
-    }
-  }
-  return result;
+function createReviewerWorkflow(): WorkflowDefinition {
+  return {
+    description: 'review workflow',
+    initial_step: 'review_step',
+    steps: [
+      {
+        id: 'review_step',
+        type: 'agent_interaction',
+        agent_id: 'reviewer_agent',
+        prompt_id: 'REVIEWER_PROMPT_TEMPLATE',
+        input_variables: { userPrompt: 'user_input' },
+        output_variable: 'review_feedback',
+        next_step: 'end',
+      },
+    ],
+  };
 }
 
-describe.skip('conductConsultation', () => {
-  const mockChatWithOllama = chatWithOllama as jest.MockedFunction<typeof chatWithOllama>;
-  const model1 = 'test-model-1';
-  const model2 = 'test-model-2';
-
-  // モックのPromptFileContentを作成
-  const mockPrompts = {
+function createJapaneseReviewerPrompts(): PromptFileContent {
+  return {
     format_version: '1.0',
     prompts: [
       {
-        id: 'THINKER_IMPROVER_SYSTEM_PROMPT',
+        id: 'REVIEWER_SYSTEM_PROMPT',
         description: '',
-        content: 'あなたは思考者であり、指摘改善者です。',
-      },
-      { id: 'REVIEWER_SYSTEM_PROMPT', description: '', content: 'あなたは批判的レビュアーです。' },
-      {
-        id: 'THINKER_INITIAL_PROMPT_TEMPLATE',
-        description: '',
-        content:
-          'ユーザーのプロンプトに対して、あなたの素の思考で回答してください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nあなたの回答:',
+        content: 'あなたは批判的なレビュアーです。必ず日本語で回答してください。',
       },
       {
         id: 'REVIEWER_PROMPT_TEMPLATE',
         description: '',
-        content:
-          '以下の思考者の回答を批判的にレビューし、改善点を見つけてください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\n思考者の回答:\n${lastThinkerImproverResponse}',
-      },
-      {
-        id: 'IMPROVER_PROMPT_TEMPLATE',
-        description: '',
-        content:
-          '以下のレビューを参考に、あなたの以前の回答を改善してください。\n--- 元のユーザープロンプト ---\n${userPrompt}\n---\n\nレビュー:\n${lastReviewerResponse}\n\nあなたの以前の回答:\n${lastThinkerImproverResponse}',
-      },
-      {
-        id: 'SUMMARIZER_SYSTEM_PROMPT',
-        description: '',
-        content: 'あなたは議論の結論を構造化して出力する専門家です。',
-      },
-      {
-        id: 'FINAL_REPORT_TEMPLATE',
-        description: '',
-        content:
-          '以下のレポートテンプレートの各セクションを、提供された「最終改善案」の内容に基づいて埋めてください。\nユーザープロンプト: ${userPrompt}\n最終改善案: ${finalAnswer}',
+        content: 'レビューしてください。${userPrompt}',
       },
     ],
+    agent_roles: {
+      reviewer_agent: {
+        system_prompt_id: 'REVIEWER_SYSTEM_PROMPT',
+        description: 'レビュアー',
+        model: 'mock-model',
+      },
+    },
   };
+}
+
+function createEnglishReviewerPrompts(): PromptFileContent {
+  return {
+    format_version: '1.0',
+    prompts: [
+      {
+        id: 'REVIEWER_SYSTEM_PROMPT',
+        description: '',
+        content: 'You are a reviewer. Always respond in English.',
+      },
+      {
+        id: 'REVIEWER_PROMPT_TEMPLATE',
+        description: '',
+        content: 'Review in English: ${userPrompt}',
+      },
+    ],
+    agent_roles: {
+      reviewer_agent: {
+        system_prompt_id: 'REVIEWER_SYSTEM_PROMPT',
+        description: 'レビュアー',
+        model: 'mock-model',
+      },
+    },
+  };
+}
+
+function mockStreamingResponse(
+  mockChat: jest.MockedFunction<typeof chatWithOllama>,
+  expectedPrompt: string,
+  response: string
+): void {
+  mockChat.mockImplementationOnce((model, messages, onContent, onDone, onError) => {
+    expect(model).toBe('mock-model');
+    expect(messages[messages.length - 1].content).toContain(expectedPrompt);
+
+    return new Promise<void>(resolve => {
+      process.nextTick(() => {
+        try {
+          onContent(response);
+          onDone();
+        } catch (error) {
+          onError(error as Error);
+        }
+        resolve();
+      });
+    });
+  });
+}
+
+describe('orchestrateWorkflow', () => {
+  const mockChat = chatWithOllama as jest.MockedFunction<typeof chatWithOllama>;
 
   beforeEach(() => {
-    // 各テストの前にモックをリセット
-    mockChatWithOllama.mockClear(); // mockResetではなくmockClearを使用
+    mockChat.mockReset();
   });
 
-  test('should conduct a consultation with specified cycles and return a summary', async () => {
-    const userPrompt = 'テストプロンプト';
-    const cycles = 2;
+  // These tests describe the workflow contract so refactors preserve retry and guard behavior.
+  it('completes successfully without retry when the first response is already Japanese', async () => {
+    mockStreamingResponse(mockChat, 'レビューしてください', '完全に日本語の応答です。');
 
-    // const result = await conductConsultation(userPrompt, model1, model2, mockPrompts, cycles);
-
-    // 最終要約が返されることを確認
-    // expect(result.finalSummary).toContain('最終要約');
-
-    // chatWithOllamaが正しい引数で呼び出されたことを確認
-    // 思考者の初期プロンプト
-    expect(mockChatWithOllama).toHaveBeenCalledWith(
-      model1,
-      expect.arrayContaining([
-        expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({
-          role: 'user',
-          content: expect.stringContaining(
-            fillTemplate(
-              mockPrompts.prompts.find(p => p.id === 'THINKER_INITIAL_PROMPT_TEMPLATE')?.content ||
-                '',
-              { userPrompt }
-            )
-          ),
-        }),
-      ]),
-      expect.any(Function), // onContent
-      expect.any(Function), // onDone
-      expect.any(Function) // onError
+    const result = await orchestrateWorkflow(
+      createReviewerWorkflow(),
+      { user_input: 'テスト' },
+      createJapaneseReviewerPrompts(),
+      true
     );
 
-    // レビュアーのプロンプト (1サイクル目)
-    expect(mockChatWithOllama).toHaveBeenCalledWith(
-      model2,
-      expect.arrayContaining([
-        expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({
-          role: 'user',
-          content: expect.stringContaining(
-            fillTemplate(
-              mockPrompts.prompts.find(p => p.id === 'REVIEWER_PROMPT_TEMPLATE')?.content || '',
-              { userPrompt, lastThinkerImproverResponse: '思考者の最初の回答' }
-            )
-          ),
-        }),
-      ]),
-      expect.any(Function), // onContent
-      expect.any(Function), // onDone
-      expect.any(Function) // onError
-    );
+    expect(result.finalOutput.review_feedback).toBe('完全に日本語の応答です。');
+    expect(mockChat).toHaveBeenCalledTimes(1);
 
-    // 思考者の改善プロンプト (1サイクル目)
-    expect(mockChatWithOllama).toHaveBeenCalledWith(
-      model1,
-      expect.arrayContaining([
-        expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({
-          role: 'user',
-          content: expect.stringContaining(
-            fillTemplate(
-              mockPrompts.prompts.find(p => p.id === 'IMPROVER_PROMPT_TEMPLATE')?.content || '',
-              {
-                userPrompt,
-                lastReviewerResponse: 'レビュアーのレビュー',
-                lastThinkerImproverResponse: '思考者の最初の回答',
-              }
-            )
-          ),
-        }),
-      ]),
-      expect.any(Function), // onContent
-      expect.any(Function), // onDone
-      expect.any(Function) // onError
+    const languageLogs = result.discussionLog.filter(entry =>
+      entry.turn.includes('language_check')
     );
-
-    // レビュアーのプロンプト (2サイクル目)
-    expect(mockChatWithOllama).toHaveBeenCalledWith(
-      model2,
-      expect.arrayContaining([
-        expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({
-          role: 'user',
-          content: expect.stringContaining(
-            fillTemplate(
-              mockPrompts.prompts.find(p => p.id === 'REVIEWER_PROMPT_TEMPLATE')?.content || '',
-              { userPrompt, lastThinkerImproverResponse: '思考者の改善された回答' }
-            )
-          ),
-        }),
-      ]),
-      expect.any(Function), // onContent
-      expect.any(Function), // onDone
-      expect.any(Function) // onError
-    );
-
-    // 思考者の改善プロンプト (2サイクル目)
-    expect(mockChatWithOllama).toHaveBeenCalledWith(
-      model1,
-      expect.arrayContaining([
-        expect.objectContaining({ role: 'system', content: expect.any(String) }),
-        expect.objectContaining({
-          role: 'user',
-          content: expect.stringContaining(
-            fillTemplate(
-              mockPrompts.prompts.find(p => p.id === 'IMPROVER_PROMPT_TEMPLATE')?.content || '',
-              {
-                userPrompt,
-                lastReviewerResponse: 'レビュアーのレビュー',
-                lastThinkerImproverResponse: '思考者の改善された回答',
-              }
-            )
-          ),
-        }), // 修正
-      ]),
-      expect.any(Function), // onContent
-      expect.any(Function), // onDone
-      expect.any(Function) // onError
-    );
-
-    // 最終要約のプロンプト
-    expect(mockChatWithOllama).toHaveBeenCalledWith(
-      model1,
-      expect.arrayContaining([
-        expect.objectContaining({
-          role: 'system',
-          content: expect.stringContaining('あなたは議論の結論を構造化して出力する専門家です。'),
-        }), // Summarizer agent's system prompt
-        expect.objectContaining({
-          role: 'user',
-          content: expect.stringContaining(
-            fillTemplate(
-              mockPrompts.prompts.find(p => p.id === 'FINAL_REPORT_TEMPLATE')?.content || '',
-              { userPrompt, finalAnswer: '思考者の改善された回答' }
-            )
-          ),
-        }),
-      ]),
-      expect.any(Function), // onContent
-      expect.any(Function), // onDone
-      expect.any(Function) // onError
-    );
-
-    // chatWithOllamaが合計6回呼び出されたことを確認 (初期思考者 + 2サイクル * 2エージェント + 要約)
-    expect(mockChatWithOllama).toHaveBeenCalledTimes(6);
+    expect(languageLogs).toHaveLength(1);
+    expect(languageLogs[0].response_received).toBe('日本語と判定');
+    expect(result.discussionLog.find(entry => entry.turn.includes('retry'))).toBeUndefined();
   });
 
-  test('should handle 0 cycles correctly', async () => {
-    const userPrompt = 'テストプロンプト';
-    const cycles = 0;
+  it('retries once when the first reviewer response is not Japanese', async () => {
+    mockStreamingResponse(mockChat, 'レビューしてください', 'This response is in English.');
+    mockStreamingResponse(mockChat, '書き直してください', '完全に日本語で書き直した応答です。');
 
-    // const result = await conductConsultation(userPrompt, model1, model2, mockPrompts, cycles);
+    const result = await orchestrateWorkflow(
+      createReviewerWorkflow(),
+      { user_input: 'テスト' },
+      createJapaneseReviewerPrompts(),
+      true
+    );
 
-    // expect(result.finalSummary).toContain('最終要約');
-    expect(mockChatWithOllama).toHaveBeenCalledTimes(2); // 初期思考者 + 要約
+    expect(result.finalOutput.review_feedback).toBe('完全に日本語で書き直した応答です。');
+    expect(mockChat).toHaveBeenCalledTimes(2);
+
+    const languageLogs = result.discussionLog.filter(entry =>
+      entry.turn.includes('language_check')
+    );
+    expect(languageLogs).toHaveLength(2);
+    expect(languageLogs[0].response_received).toBe('日本語以外と判定');
+    expect(languageLogs[1].response_received).toBe('日本語と判定');
+
+    const retryEntries = result.discussionLog.filter(
+      entry => entry.turn === 'Step 1 (review_step) retry 1'
+    );
+    expect(retryEntries).toHaveLength(1);
+    expect(retryEntries[0].response_received).toBe('完全に日本語で書き直した応答です。');
+  });
+
+  it('skips the Japanese guard when the prompts explicitly require English output', async () => {
+    mockStreamingResponse(mockChat, 'Review in English', 'This response stays in English.');
+
+    const result = await orchestrateWorkflow(
+      createReviewerWorkflow(),
+      { user_input: 'テスト' },
+      createEnglishReviewerPrompts(),
+      true
+    );
+
+    expect(result.finalOutput.review_feedback).toBe('This response stays in English.');
+    expect(mockChat).toHaveBeenCalledTimes(1);
+    expect(
+      result.discussionLog.filter(entry => entry.turn.includes('language_check'))
+    ).toHaveLength(0);
+    expect(result.discussionLog.find(entry => entry.turn.includes('retry'))).toBeUndefined();
+  });
+
+  it('fails fast when required initial input is missing', async () => {
+    await expect(
+      orchestrateWorkflow(
+        createReviewerWorkflow(),
+        {},
+        createJapaneseReviewerPrompts(),
+        true
+      )
+    ).rejects.toThrow(
+      "Input variable 'userPrompt' expects 'user_input' but it's not provided in initial context."
+    );
+
+    expect(mockChat).not.toHaveBeenCalled();
   });
 });
