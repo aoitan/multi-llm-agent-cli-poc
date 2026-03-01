@@ -181,7 +181,9 @@ describe('orchestrateWorkflow', () => {
         createJapaneseReviewerPrompts(),
         true
       )
-    ).rejects.toThrow("Input variable 'userPrompt' expects 'user_input' but it's not provided");
+    ).rejects.toThrow(
+      "Input variable 'userPrompt' expects 'user_input' but it's not provided in initial context."
+    );
 
     expect(mockChat).not.toHaveBeenCalled();
   });
