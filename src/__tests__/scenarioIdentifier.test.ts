@@ -1,7 +1,7 @@
-import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 import { identifyScenario } from '../utils/scenarioIdentifier';
+import { cleanupTestTempDir, createTestTempDir } from '../testHelpers/testTempDir';
 
 const mockScenarioConfigContent = `
 {
@@ -51,7 +51,7 @@ describe('identifyScenario', () => {
       ? fs.readFileSync(productionConfigPath, 'utf8')
       : null;
     originalScenarioConfigPath = process.env.SCENARIO_CONFIG_PATH;
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scenario-identifier-test-'));
+    tempDir = createTestTempDir('scenario-identifier-test-');
     tempConfigPath = path.join(tempDir, 'scenario_config.json');
     fs.writeFileSync(tempConfigPath, mockScenarioConfigContent);
     process.env.SCENARIO_CONFIG_PATH = tempConfigPath;
@@ -64,9 +64,7 @@ describe('identifyScenario', () => {
       process.env.SCENARIO_CONFIG_PATH = originalScenarioConfigPath;
     }
 
-    if (tempDir && fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true });
-    }
+    cleanupTestTempDir(tempDir);
   });
 
   it('should identify "social_issues" scenario for a matching prompt', async () => {
