@@ -8,9 +8,9 @@ export const DEFAULT_JAPANESE_THRESHOLD = 0.3;
 export const DEFAULT_RETRY_ATTEMPTS = 2;
 
 export const LANGUAGE_GUARD_CONFIGS: LanguageGuardConfig[] = [
-  { agentId: 'reviewer_agent', threshold: 0.3, maxAttempts: 2 },
-  { agentId: 'thinker_improver_agent', threshold: 0.3, maxAttempts: 1 },
-  { agentId: 'summarizer_agent', threshold: 0.3, maxAttempts: 1 },
+  { agentId: 'reviewer_agent', threshold: DEFAULT_JAPANESE_THRESHOLD, maxAttempts: DEFAULT_RETRY_ATTEMPTS },
+  { agentId: 'thinker_improver_agent', threshold: DEFAULT_JAPANESE_THRESHOLD, maxAttempts: 1 },
+  { agentId: 'summarizer_agent', threshold: DEFAULT_JAPANESE_THRESHOLD, maxAttempts: 1 },
 ];
 
 export function getLanguageGuardConfig(agentId: string): LanguageGuardConfig | undefined {

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { loadScenarioConfig, clearScenarioConfigCache } from '../utils/scenarioConfig';
+import { cleanupTestTempDir, createTestTempDir } from '../testHelpers/testTempDir';
 
 const mockConfigContent = JSON.stringify({
   scenarios: [
@@ -22,34 +23,27 @@ const mockConfigContent = JSON.stringify({
 });
 
 describe('scenarioConfig', () => {
-  const tempConfigPath = path.resolve(__dirname, '../../config/scenario_config.json');
-  let originalConfig: string | null = null;
-
-  beforeAll(() => {
-    // 既存の設定ファイルがあればバックアップ
-    if (fs.existsSync(tempConfigPath)) {
-      originalConfig = fs.readFileSync(tempConfigPath, 'utf8');
-    }
-    fs.mkdirSync(path.dirname(tempConfigPath), { recursive: true });
-    fs.writeFileSync(tempConfigPath, mockConfigContent);
-  });
-
-  afterAll(() => {
-    // 元に戻す
-    if (originalConfig !== null) {
-      fs.writeFileSync(tempConfigPath, originalConfig);
-    } else if (fs.existsSync(tempConfigPath)) {
-      fs.unlinkSync(tempConfigPath);
-    }
-  });
+  let tempDir: string;
+  let tempConfigPath: string;
+  let originalScenarioConfigPath: string | undefined;
 
   beforeEach(() => {
+    originalScenarioConfigPath = process.env.SCENARIO_CONFIG_PATH;
+    tempDir = createTestTempDir('scenario-config-test-');
+    tempConfigPath = path.join(tempDir, 'scenario_config.json');
+    fs.writeFileSync(tempConfigPath, mockConfigContent);
+    process.env.SCENARIO_CONFIG_PATH = tempConfigPath;
     clearScenarioConfigCache();
-    delete process.env.SCENARIO_CONFIG_PATH;
   });
 
   afterEach(() => {
-    delete process.env.SCENARIO_CONFIG_PATH;
+    if (originalScenarioConfigPath === undefined) {
+      delete process.env.SCENARIO_CONFIG_PATH;
+    } else {
+      process.env.SCENARIO_CONFIG_PATH = originalScenarioConfigPath;
+    }
+    cleanupTestTempDir(tempDir);
+    clearScenarioConfigCache();
   });
 
   it('should load scenario config from default path', async () => {
@@ -74,25 +68,31 @@ describe('scenarioConfig', () => {
     expect(second.default_scenario_id).toBe('default_scenario');
   });
 
-  it('should use SCENARIO_CONFIG_PATH env var when set', async () => {
-    // 別パスに別のモック設定ファイルを用意
-    const altPath = path.resolve(__dirname, 'test_prompts/alt_scenario_config.json');
-    fs.mkdirSync(path.dirname(altPath), { recursive: true });
+  it('should reload when SCENARIO_CONFIG_PATH changes to a different file', async () => {
+    const altDir = createTestTempDir('scenario-config-alt-');
+    const altPath = path.join(altDir, 'alt_scenario_config.json');
     const altContent = JSON.stringify({
       scenarios: [{ id: 'alt_scenario', name: 'Alt', description: 'Alt', keywords: [] }],
       default_scenario_id: 'alt_scenario',
     });
     fs.writeFileSync(altPath, altContent);
 
-    process.env.SCENARIO_CONFIG_PATH = altPath;
-    const config = await loadScenarioConfig();
-    expect(config.default_scenario_id).toBe('alt_scenario');
+    try {
+      const first = await loadScenarioConfig();
+      expect(first.default_scenario_id).toBe('default_scenario');
 
-    fs.unlinkSync(altPath);
+      process.env.SCENARIO_CONFIG_PATH = altPath;
+      const second = await loadScenarioConfig();
+      expect(second.default_scenario_id).toBe('alt_scenario');
+    } finally {
+      cleanupTestTempDir(altDir);
+    }
   });
 
-  it('should throw an error if config file does not exist', async () => {
+  it('should throw an error with file path when config file does not exist', async () => {
     process.env.SCENARIO_CONFIG_PATH = '/nonexistent/path/scenario_config.json';
-    await expect(loadScenarioConfig()).rejects.toThrow();
+    await expect(loadScenarioConfig()).rejects.toThrow(
+      "Failed to load scenario config from '/nonexistent/path/scenario_config.json'"
+    );
   });
 });

@@ -15,6 +15,7 @@ export interface ScenarioConfig {
   default_scenario_id: string;
 }
 
+let cachedConfigPath: string | null = null;
 let scenarioConfigCache: ScenarioConfig | null = null;
 
 function resolveConfigPath(): string {
@@ -25,16 +26,24 @@ function resolveConfigPath(): string {
 }
 
 export async function loadScenarioConfig(): Promise<ScenarioConfig> {
-  if (scenarioConfigCache) {
+  const configPath = resolveConfigPath();
+  if (scenarioConfigCache && cachedConfigPath === configPath) {
     return scenarioConfigCache;
   }
-  const configPath = resolveConfigPath();
-  const data = await fs.promises.readFile(configPath, 'utf8');
-  const parsed: ScenarioConfig = JSON.parse(data);
-  scenarioConfigCache = parsed;
-  return parsed;
+  try {
+    const data = await fs.promises.readFile(configPath, 'utf8');
+    const parsed: ScenarioConfig = JSON.parse(data);
+    scenarioConfigCache = parsed;
+    cachedConfigPath = configPath;
+    return parsed;
+  } catch (err) {
+    throw new Error(
+      `Failed to load scenario config from '${configPath}': ${(err as Error).message}`
+    );
+  }
 }
 
 export function clearScenarioConfigCache(): void {
   scenarioConfigCache = null;
+  cachedConfigPath = null;
 }
