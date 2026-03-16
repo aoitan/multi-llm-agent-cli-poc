@@ -1,120 +1,18 @@
 import { chatWithOllama } from './ollamaApi';
 import { PromptFileContent, getPromptById, getAgentRoleById } from './utils/promptLoader';
 import { calculateJapaneseCharacterRatio, isLikelyJapanese } from './utils/languageUtils';
-
-interface Message {
-  role: string;
-  content: string;
-}
-
-interface DiscussionTurn {
-  turn: string;
-  agent_role: string;
-  prompt_sent: string;
-  response_received: string;
-}
-
-interface LanguageGuardConfig {
-  agentId: string;
-  threshold: number;
-  maxAttempts: number;
-}
-
-const DEFAULT_JAPANESE_THRESHOLD = 0.3;
-const DEFAULT_RETRY_ATTEMPTS = 2;
-
-const LANGUAGE_GUARD_CONFIGS: LanguageGuardConfig[] = [
-  { agentId: 'reviewer_agent', threshold: 0.3, maxAttempts: 2 },
-  { agentId: 'thinker_improver_agent', threshold: 0.3, maxAttempts: 1 },
-  { agentId: 'summarizer_agent', threshold: 0.3, maxAttempts: 1 },
-];
-
-function getLanguageGuardConfig(agentId: string): LanguageGuardConfig | undefined {
-  return LANGUAGE_GUARD_CONFIGS.find(config => config.agentId === agentId);
-}
-
-function requiresJapaneseOutput(...sources: Array<string | undefined>): boolean {
-  const combined = sources.filter(Boolean).join(' ').toLowerCase();
-  if (!combined) {
-    return false;
-  }
-
-  if (combined.includes('日本語')) {
-    return true;
-  }
-
-  return combined.includes('in japanese');
-}
-
-function buildJapaneseRewritePrompt(attempt: number): string {
-  return [
-    '直前の応答には日本語以外の要素が含まれています。',
-    '直前に返した内容と同じ意味を保ちながら、英語の単語や文章を含めずに完全に日本語で書き直してください。',
-    '必要に応じて語彙や表現を調整しても構いませんが、回答全体を日本語で提示してください。',
-    `再試行回数: ${attempt}`,
-  ].join('\n');
-}
-
-class Agent {
-  private model: string;
-  private systemPrompt: string;
-  private messages: Message[];
-  private temperature?: number;
-  private jsonOutput: boolean; // Add jsonOutput property
-
-  constructor(
-    model: string,
-    systemPrompt: string,
-    temperature?: number,
-    jsonOutput: boolean = false
-  ) {
-    // Add jsonOutput to constructor
-    this.model = model;
-    this.systemPrompt = systemPrompt;
-    this.messages = [{ role: 'system', content: systemPrompt }];
-    this.temperature = temperature;
-    this.jsonOutput = jsonOutput; // Store jsonOutput
-  }
-
-  public async sendMessage(
-    userMessage: string,
-    onContent: (content: string) => void
-  ): Promise<string> {
-    this.messages.push({ role: 'user', content: userMessage });
-    let agentResponse = '';
-
-    await new Promise<void>((resolve, reject) => {
-      chatWithOllama(
-        this.model,
-        this.messages,
-        contentChunk => {
-          agentResponse += contentChunk;
-          onContent(contentChunk);
-        },
-        () => {
-          resolve();
-        },
-        error => {
-          reject(error);
-        },
-        this.temperature,
-        this.jsonOutput // Pass jsonOutput to chatWithOllama
-      );
-    });
-
-    this.messages.push({ role: 'assistant', content: agentResponse });
-    return agentResponse;
-  }
-
-  public getModel(): string {
-    return this.model;
-  }
-
-  public getMessages(): Message[] {
-    // Return a deep copy to prevent external mutation
-    return this.messages.map(msg => ({ ...msg }));
-  }
-}
+import { fillTemplate } from './utils/templateUtils';
+export { fillTemplate }; // 後方互換のため re-export する
+import { Agent, DiscussionTurn } from './agents';
+import {
+  LanguageGuardConfig,
+  LANGUAGE_GUARD_CONFIGS,
+  DEFAULT_JAPANESE_THRESHOLD,
+  DEFAULT_RETRY_ATTEMPTS,
+  getLanguageGuardConfig,
+  requiresJapaneseOutput,
+  buildJapaneseRewritePrompt,
+} from './guards/languageGuard';
 
 import {
   WorkflowDefinition,
@@ -441,15 +339,4 @@ export async function runEnsemble(prompt: string, models: string[]): Promise<str
     ensembleResponses.push(fullResponse);
   }
   return ensembleResponses;
-}
-
-export function fillTemplate(template: string, variables: { [key: string]: string }): string {
-  let result = template;
-  for (const key in variables) {
-    if (Object.prototype.hasOwnProperty.call(variables, key)) {
-      const placeholder = `\\$\\{${key}\\}`;
-      result = result.replace(new RegExp(placeholder, 'g'), variables[key]);
-    }
-  }
-  return result;
 }

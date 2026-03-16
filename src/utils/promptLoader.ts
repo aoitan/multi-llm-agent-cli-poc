@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { loadScenarioConfig } from './scenarioConfig';
 
 // プロンプト定義の型
 export interface PromptDefinition {
@@ -21,40 +22,6 @@ export interface PromptFileContent {
   format_version: string;
   prompts: PromptDefinition[];
   agent_roles?: { [key: string]: AgentRoleDefinition }; // agent_rolesを追加
-}
-
-// シナリオ設定の型
-interface ScenarioConfig {
-  scenarios: {
-    id: string;
-    name: string;
-    description: string;
-    keywords: string[];
-    default_workflow_id: string;
-    prompt_file_path: string; // 追加
-  }[];
-  default_scenario_id: string;
-}
-
-let cachedScenarioConfig: ScenarioConfig | null = null;
-
-async function loadScenarioConfig(): Promise<ScenarioConfig> {
-  if (cachedScenarioConfig) {
-    return cachedScenarioConfig;
-  }
-  const configPath = path.resolve(process.cwd(), 'config/scenario_config.json');
-  if (!fs.existsSync(configPath)) {
-    throw new Error('scenario_config.json not found');
-  }
-  const data = await fs.promises.readFile(configPath, 'utf8');
-  let config: ScenarioConfig;
-  try {
-    config = JSON.parse(data);
-  } catch (jsonError) {
-    throw new Error('Invalid scenario_config.json format');
-  }
-  cachedScenarioConfig = config;
-  return config;
 }
 
 /**
