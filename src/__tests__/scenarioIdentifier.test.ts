@@ -1,3 +1,4 @@
+import { clearScenarioConfigCache } from '../utils/scenarioConfig';
 import * as fs from 'fs';
 import * as path from 'path';
 import { identifyScenario } from '../utils/scenarioIdentifier';
@@ -55,6 +56,7 @@ describe('identifyScenario', () => {
     tempConfigPath = path.join(tempDir, 'scenario_config.json');
     fs.writeFileSync(tempConfigPath, mockScenarioConfigContent);
     process.env.SCENARIO_CONFIG_PATH = tempConfigPath;
+    clearScenarioConfigCache();
   });
 
   afterEach(() => {

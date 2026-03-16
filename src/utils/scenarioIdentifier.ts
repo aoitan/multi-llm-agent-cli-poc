@@ -1,47 +1,6 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import { loadScenarioConfig, Scenario } from './scenarioConfig';
 
-export interface Scenario {
-  id: string;
-  name: string;
-  description: string;
-  keywords: string[];
-  default_workflow_id?: string;
-}
-
-interface ScenarioConfig {
-  scenarios: Scenario[];
-  default_scenario_id: string;
-}
-
-const defaultScenarioConfigPath = path.resolve(
-  process.cwd(),
-  'config/scenario_config.json'
-);
-
-let scenarioConfigCache: ScenarioConfig | null = null;
-
-function getScenarioConfigPath(): string {
-  return process.env.SCENARIO_CONFIG_PATH ?? defaultScenarioConfigPath;
-}
-
-async function loadScenarioConfig(): Promise<ScenarioConfig> {
-  const configPath = getScenarioConfigPath();
-  const shouldUseCache = path.resolve(configPath) === path.resolve(defaultScenarioConfigPath);
-
-  if (shouldUseCache && scenarioConfigCache) {
-    return scenarioConfigCache;
-  }
-
-  const data = await fs.promises.readFile(configPath, 'utf8');
-  const parsedConfig: ScenarioConfig = JSON.parse(data);
-
-  if (shouldUseCache) {
-    scenarioConfigCache = parsedConfig;
-  }
-
-  return parsedConfig;
-}
+export type { Scenario };
 
 export async function identifyScenario(userPrompt: string): Promise<Scenario> {
   const config = await loadScenarioConfig();

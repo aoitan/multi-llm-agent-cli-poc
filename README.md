@@ -98,13 +98,22 @@ npm start -- --user-prompt "技術的な質問です" --prompt-file prompts/tech
 ## プロジェクト構造
 
 -   `src/index.ts`: CLIのエントリーポイント。ユーザーの入力を受け取り、シナリオ識別、プロンプトの動的ロード、ワークフローのオーケストレーションを調整します。
--   `src/agent.ts`: LLMとの対話ロジックと、ワークフローのオーケストレーション (`orchestrateWorkflow`関数) を定義します。
+-   `src/agent.ts`: ワークフローオーケストレーションのエントリーポイント。`orchestrateWorkflow`, `runEnsemble`, `fillTemplate` をエクスポートします。各機能は以下のモジュールに委譲されています。
+-   `src/agents/`: **エージェントモジュール**
+    -   `Agent.ts`: LLMエージェントクラス (`Agent`)、メッセージ型 (`Message`, `DiscussionTurn`) を定義します。
+    -   `index.ts`: `Agent`, `Message`, `DiscussionTurn` を re-export します。
+-   `src/guards/`: **入出力ガードモジュール**
+    -   `languageGuard.ts`: 言語ガード設定 (`LANGUAGE_GUARD_CONFIGS`)、日本語出力判定 (`requiresJapaneseOutput`)、リライトプロンプト生成 (`buildJapaneseRewritePrompt`) を提供します。
 -   `src/ollamaApi.ts`: Ollama APIとの通信を行うためのラッパー関数を提供します。
+-   `src/cooperativeAgentEval.ts`: 協調エージェント評価用CLIスクリプト。`orchestrateWorkflow` を使って指定ワークフローを実行します。
+-   `src/singleAgentEval.ts`: 単一エージェント評価用CLIスクリプト。`runEnsemble` を使います。
 -   `src/utils/`:
     -   `configLoader.ts`: 設定ファイルをロードします。
     -   `errorUtils.ts`: エラーハンドリングユーティリティ。
     -   `promptLoader.ts`: プロンプトファイル、エージェントロール、プロンプトセットをロードします。
-    -   `scenarioIdentifier.ts`: ユーザープロンプトに基づいてシナリオを識別します。
+    -   `scenarioConfig.ts`: **シナリオ設定の共通ローダー**。`loadScenarioConfig()` と `clearScenarioConfigCache()` を提供します。`SCENARIO_CONFIG_PATH` 環境変数でパスを上書き可能です。
+    -   `scenarioIdentifier.ts`: ユーザープロンプトに基づいてシナリオを識別します。内部で `scenarioConfig.ts` を使用します。
+    -   `templateUtils.ts`: テンプレート文字列のプレースホルダ置換 (`fillTemplate`) を提供します。
     -   `workflowLoader.ts`: ワークフロー定義ファイルをロードします。
 -   `config/`:
     -   `ab_test_config.json`: A/Bテストの設定ファイル。
@@ -121,6 +130,22 @@ npm start -- --user-prompt "技術的な質問です" --prompt-file prompts/tech
 -   `doc/development_plan.md`: 開発計画が記載されています。
 -   `doc/design_talk/`: LLMとの議論の要約が格納されています。
 -   `doc/design/`: 各機能の設計書が格納されます。
+
+### 主要エクスポート一覧
+
+| モジュール | エクスポート | 説明 |
+|---|---|---|
+| `src/agent.ts` | `orchestrateWorkflow` | ワークフロー定義に従いエージェントを順次実行する |
+| `src/agent.ts` | `runEnsemble` | 複数モデルに同一プロンプトを並列送信する |
+| `src/agent.ts` | `fillTemplate` | `templateUtils` からの re-export |
+| `src/agents` | `Agent` | LLMエージェントクラス |
+| `src/agents` | `Message`, `DiscussionTurn` | エージェント通信の型定義 |
+| `src/guards/languageGuard` | `requiresJapaneseOutput` | 日本語出力が必要かを判定する |
+| `src/guards/languageGuard` | `buildJapaneseRewritePrompt` | 日本語リライト指示プロンプトを生成する |
+| `src/utils/scenarioConfig` | `loadScenarioConfig` | シナリオ設定をキャッシュ付きでロードする |
+| `src/utils/scenarioConfig` | `clearScenarioConfigCache` | キャッシュをクリアする（主にテスト用途） |
+| `src/utils/templateUtils` | `fillTemplate` | `${key}` 形式のプレースホルダを置換する |
+
 
 ## ライセンス
 

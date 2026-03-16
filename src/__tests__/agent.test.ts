@@ -187,4 +187,53 @@ describe('orchestrateWorkflow', () => {
 
     expect(mockChat).not.toHaveBeenCalled();
   });
+
+  it('propagates error when the LLM API fails', async () => {
+    mockChat.mockImplementationOnce((_model, _messages, _onContent, _onDone, onError) => {
+      return new Promise<void>(resolve => {
+        process.nextTick(() => {
+          onError(new Error('Ollama connection refused'));
+          resolve();
+        });
+      });
+    });
+
+    await expect(
+      orchestrateWorkflow(
+        createReviewerWorkflow(),
+        { user_input: 'テスト' },
+        createJapaneseReviewerPrompts(),
+        false
+      )
+    ).rejects.toThrow('Ollama connection refused');
+  });
+
+  it('throws when a required agent role is not configured', async () => {
+    const brokenWorkflow: WorkflowDefinition = {
+      description: 'broken workflow',
+      initial_step: 'broken_step',
+      steps: [
+        {
+          id: 'broken_step',
+          type: 'agent_interaction',
+          agent_id: 'nonexistent_agent',
+          prompt_id: 'REVIEWER_PROMPT_TEMPLATE',
+          input_variables: { userPrompt: 'user_input' },
+          output_variable: 'result',
+          next_step: 'end',
+        },
+      ],
+    };
+
+    await expect(
+      orchestrateWorkflow(
+        brokenWorkflow,
+        { user_input: 'テスト' },
+        createJapaneseReviewerPrompts(),
+        false
+      )
+    ).rejects.toThrow("Agent role 'nonexistent_agent' not found.");
+
+    expect(mockChat).not.toHaveBeenCalled();
+  });
 });
