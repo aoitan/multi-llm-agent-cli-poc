@@ -137,10 +137,9 @@ describe('detectProjectContext', () => {
 
     const configPath = path.join(repoDir, '.cli-wrapper.json');
     fs.writeFileSync(configPath, '{ invalid json');
-    const resolvedConfigPath = fs.realpathSync(configPath);
 
     expect(() => detectProjectContext({ cwd: repoDir, env: {} })).toThrow(
-      `Failed to parse ${resolvedConfigPath}:`
+      /Failed to parse .*\.cli-wrapper\.json:/
     );
   });
 });

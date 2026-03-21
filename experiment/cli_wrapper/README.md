@@ -44,7 +44,7 @@ Phase 1 で対象とする CLI ツール：
 ```
 
 - `id`: 任意。`projectId` を上書きする。未指定時は git root のディレクトリ名を使う。
-- `backend`: 任意。既定値は `copilot`。
+- `backend`: 任意。.cli-wrapper.json にも `detectProjectContext()` の `options.backend` にも指定がない場合の既定値は `copilot`。
 - `envType`: 任意。`prod` / `staging` / `dev` / `unknown` のいずれか。
 - `dangerLevel`: 任意。`high` / `normal` のいずれか。
 
@@ -52,7 +52,7 @@ Phase 1 で対象とする CLI ツール：
 
 - `projectId`: `.cli-wrapper.json` の `id` があればそれを使い、なければ git root basename を使う。
 - `cwd`: `detectProjectContext()` に渡したカレントディレクトリをそのまま保持する。
-- `backend`: `.cli-wrapper.json` の `backend` があればそれを使い、なければ `copilot`。
+- `backend`: `.cli-wrapper.json` の `backend` があればそれを最優先で使い、なければ `detectProjectContext()` に渡された `options.backend` を使い、いずれも無ければ `copilot` を既定値とする。
 - `envType`: `NODE_ENV` / `RAILS_ENV` / `RACK_ENV` / `APP_ENV` を優先順で見て `prod` / `staging` / `dev` / `unknown` に正規化する。
 - `dangerLevel`: git branch が `main` / `master` / `production` / `prod` の場合は `high`、それ以外は `normal`。`.cli-wrapper.json` があればその値を優先する。
 

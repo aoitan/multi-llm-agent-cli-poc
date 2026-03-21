@@ -16,7 +16,7 @@
 
 - 観測日: 2026-03-17
 - インストール確認:
-  - `which copilot` -> `/Users/aoitan/.nvm/versions/node/v22.18.0/bin/copilot`
+  - `which copilot` -> `<HOME>/.nvm/versions/node/v22.18.0/bin/copilot`
   - `npm list -g --depth=0` -> `@github/copilot@0.0.372`
 - バージョン確認方法:
   - 優先: `copilot --version`

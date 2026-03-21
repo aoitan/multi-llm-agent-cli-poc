@@ -135,9 +135,18 @@ function loadCliWrapperConfig(projectRoot: string): CliWrapperConfig {
     return {};
   }
 
+  let rawConfig: string;
+  try {
+    rawConfig = fs.readFileSync(configPath, 'utf8');
+  } catch (err) {
+    throw new Error(
+      `Failed to read ${configPath}: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
   let parsed: unknown;
   try {
-    parsed = JSON.parse(fs.readFileSync(configPath, 'utf8')) as unknown;
+    parsed = JSON.parse(rawConfig) as unknown;
   } catch (err) {
     throw new Error(
       `Failed to parse ${configPath}: ${err instanceof Error ? err.message : String(err)}`
