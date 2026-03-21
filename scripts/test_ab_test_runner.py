@@ -107,10 +107,6 @@ class TestRunLlmConsultation(unittest.TestCase):
         self.assertNotIn("False", output)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestAbTestRunnerMainJson(unittest.TestCase):
     """main() が JSON モードで正しいエラー JSON を出力することを検証する統合テスト。"""
 
@@ -195,3 +191,7 @@ class TestAbTestRunnerMainJson(unittest.TestCase):
         self.assertTrue(len(output) > 0, "JSON モードのエラー時に stdout が空")
         parsed = json.loads(output)
         self.assertIn("error", parsed)
+
+
+if __name__ == "__main__":
+    unittest.main()

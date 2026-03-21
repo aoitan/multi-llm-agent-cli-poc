@@ -151,42 +151,37 @@ def main():
                     if not current_config_file or not current_workflow_id:
                         logging(f"Error: Static group '{group_id}' is missing 'prompt_file_path' or 'workflow_id'. Skipping.", args.json)
                         continue
-
-                    try:
-                        summary, log = run_llm_consultation(
-                            user_prompt, # ここで test_prompts から取得した user_prompt を使用
-                            evaluation_models[0],
-                            evaluation_models[1],
-                            workflow_id=current_workflow_id,
-                            prompt_file=current_config_file,
-                            prompt_language=group.get("prompt_language"),
-                            is_json=args.json
-                        )
-                    except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-                        emit_error(f"LLM consultation failed: {e}", args.json)
-                        sys.exit(1)
+                    kwargs = dict(
+                        workflow_id=current_workflow_id,
+                        prompt_file=current_config_file,
+                        prompt_language=group.get("prompt_language"),
+                        is_json=args.json,
+                    )
                 elif group_type == "dynamic":
                     scenario_based_selection = group.get("scenario_based_workflow_selection_enabled", False)
 
                     if not scenario_based_selection:
                         logging(f"Error: Dynamic group '{group_id}' has 'scenario_based_workflow_selection_enabled' as false. Skipping.", args.json)
                         continue
-
-                    try:
-                        summary, log = run_llm_consultation(
-                            user_prompt, # ここで test_prompts から取得した user_prompt を使用
-                            evaluation_models[0],
-                            evaluation_models[1],
-                            workflow_id=None, # index.js が解決
-                            prompt_language=group.get("prompt_language"),
-                            is_json=args.json
-                        )
-                    except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-                        emit_error(f"LLM consultation failed: {e}", args.json)
-                        sys.exit(1)
+                    kwargs = dict(
+                        workflow_id=None, # index.js が解決
+                        prompt_language=group.get("prompt_language"),
+                        is_json=args.json,
+                    )
                 else:
                     logging(f"Error: Unknown group type '{group_type}' for group '{group_id}'. Skipping.", args.json)
                     continue
+
+                try:
+                    summary, log = run_llm_consultation(
+                        user_prompt,
+                        evaluation_models[0],
+                        evaluation_models[1],
+                        **kwargs,
+                    )
+                except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+                    emit_error(f"LLM consultation failed: {e}", args.json)
+                    sys.exit(1)
 
                 group_results[run_key] = {
                     "finalOutput": json.dumps(summary, indent=2, ensure_ascii=False),
