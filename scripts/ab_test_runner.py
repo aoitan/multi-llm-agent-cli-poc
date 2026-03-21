@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import json
 import subprocess
 from datetime import datetime
@@ -9,6 +10,22 @@ def logging(msg: str, is_json: bool):
     """json_onlyフラグがFalseのときだけメッセージをprintする"""
     if not is_json:
         print(msg)
+
+
+def emit_error(message: str, is_json: bool) -> None:
+    """Emit an error message respecting the --json flag.
+
+    JSON mode error format:
+        {"error": {"message": "<human-readable description>"}}
+
+    In JSON mode this function writes the error JSON to stdout so that
+    automated callers can parse it. In non-JSON mode it logs to stdout
+    as plain text via logging().
+    """
+    if is_json:
+        print(json.dumps({"error": {"message": message}}, ensure_ascii=False))
+    else:
+        logging(message, is_json)
 
 def run_llm_consultation(user_prompt: str, model1: str, model2: str, workflow_id: str = None, prompt_file: str = None, prompt_language: str = None, is_json: bool = False):
     """Runs the LLM consultation and returns the final summary and discussion log."""
@@ -38,14 +55,14 @@ def run_llm_consultation(user_prompt: str, model1: str, model2: str, workflow_id
         data = json.loads(result.stdout)
         return data.get('finalOutput', ''), data.get('discussionLog', [])
     except subprocess.CalledProcessError as e:
-        print(f"Error: Command '{' '.join(command)}' failed with exit code {e.returncode}", is_json)
-        print(f"Stdout:\n{e.stdout}", is_json)
-        print(f"Stderr:\n{e.stderr}", is_json)
-        return e.stdout if e.stdout else "", []  # Return error output and empty log
+        logging(f"Error: Command '{' '.join(command)}' failed with exit code {e.returncode}", is_json)
+        logging(f"Stdout:\n{e.stdout}", is_json)
+        logging(f"Stderr:\n{e.stderr}", is_json)
+        raise  # 呼び出し元で emit_error + sys.exit(1) により処理する
     except json.JSONDecodeError as e:
-        print(f"Error: Could not decode JSON from stdout: {e}", is_json)
-        print(f"Stdout:\n{result.stdout}", is_json)
-        return result.stdout, [] # Return raw stdout if JSON decoding fails
+        logging(f"Error: Could not decode JSON from stdout: {e}", is_json)
+        logging(f"Stdout:\n{result.stdout}", is_json)
+        raise  # 呼び出し元で emit_error + sys.exit(1) により処理する
 
 def main():
     parser = argparse.ArgumentParser(description='Run A/B test for LLM prompts.')
@@ -70,18 +87,17 @@ def main():
             config = json.load(f)
         logging(f"Loaded config from {args.config}", args.json)
     else:
-        logging(f"Error: Config file not found: {args.config}. Using default settings.", args.json)
-        # 設定ファイルが見つからない場合はエラーとするか、デフォルト設定を厳密に定義する
-        # 今回はエラーとして終了する
+        emit_error(f"Config file not found: {args.config}", args.json)
+        sys.exit(1)
 
     if not config.get("dynamic_prompt_ab_test_enabled", False):
-        logging("Error: 'dynamic_prompt_ab_test_enabled' is not true in config. Exiting.", args.json)
-        return
+        emit_error("'dynamic_prompt_ab_test_enabled' is not true in config.", args.json)
+        sys.exit(1)
 
     test_groups = config.get("test_groups", [])
     if not test_groups:
-        logging("Error: 'test_groups' not found or empty in config. Exiting.", args.json)
-        return
+        emit_error("'test_groups' not found or empty in config.", args.json)
+        sys.exit(1)
 
     evaluation_models = config.get("evaluation_models", ["llama3:8b", "llama3:8b"])
     if args.model1: # CLIオプションが指定されていれば上書き
@@ -96,15 +112,15 @@ def main():
         with open(evaluation_prompt_template_path, 'r', encoding='utf-8') as f:
             evaluation_prompt_template = f.read()
     else:
-        logging(f"Error: Evaluation prompt template not found at {evaluation_prompt_template_path}", args.json)
-        return
+        emit_error(f"Evaluation prompt template not found at {evaluation_prompt_template_path}", args.json)
+        sys.exit(1)
 
     all_results = {} # 全てのテスト結果を格納する辞書
 
     test_prompts = config.get("test_prompts", [])
     if not test_prompts:
-        logging("Error: 'test_prompts' not found or empty in config. Exiting.", args.json)
-        return
+        emit_error("'test_prompts' not found or empty in config.", args.json)
+        sys.exit(1)
 
     for test_prompt_data in test_prompts:
         prompt_id = test_prompt_data.get("id")
@@ -135,34 +151,37 @@ def main():
                     if not current_config_file or not current_workflow_id:
                         logging(f"Error: Static group '{group_id}' is missing 'prompt_file_path' or 'workflow_id'. Skipping.", args.json)
                         continue
-                    
-                    summary, log = run_llm_consultation(
-                        user_prompt, # ここで test_prompts から取得した user_prompt を使用
-                        evaluation_models[0],
-                        evaluation_models[1],
+                    kwargs = dict(
                         workflow_id=current_workflow_id,
                         prompt_file=current_config_file,
                         prompt_language=group.get("prompt_language"),
-                        is_json=args.json
+                        is_json=args.json,
                     )
                 elif group_type == "dynamic":
                     scenario_based_selection = group.get("scenario_based_workflow_selection_enabled", False)
-                    
+
                     if not scenario_based_selection:
                         logging(f"Error: Dynamic group '{group_id}' has 'scenario_based_workflow_selection_enabled' as false. Skipping.", args.json)
                         continue
-                    
-                    summary, log = run_llm_consultation(
-                        user_prompt, # ここで test_prompts から取得した user_prompt を使用
-                        evaluation_models[0], 
-                        evaluation_models[1],
+                    kwargs = dict(
                         workflow_id=None, # index.js が解決
                         prompt_language=group.get("prompt_language"),
-                        is_json=args.json
+                        is_json=args.json,
                     )
                 else:
                     logging(f"Error: Unknown group type '{group_type}' for group '{group_id}'. Skipping.", args.json)
                     continue
+
+                try:
+                    summary, log = run_llm_consultation(
+                        user_prompt,
+                        evaluation_models[0],
+                        evaluation_models[1],
+                        **kwargs,
+                    )
+                except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+                    emit_error(f"LLM consultation failed: {e}", args.json)
+                    sys.exit(1)
 
                 group_results[run_key] = {
                     "finalOutput": json.dumps(summary, indent=2, ensure_ascii=False),

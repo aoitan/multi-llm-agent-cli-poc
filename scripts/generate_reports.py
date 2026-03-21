@@ -2,6 +2,7 @@ import argparse
 import os
 import json
 import re # 正規表現のために追加
+import sys
 from datetime import datetime
 import subprocess
 
@@ -97,14 +98,14 @@ def main():
         ab_test_result = subprocess.run(ab_test_runner_command, capture_output=True, text=True, check=True, env=os.environ)
         all_results = json.loads(ab_test_result.stdout)
     except subprocess.CalledProcessError as e:
-        print(f"Error: A/B test runner failed with exit code {e.returncode}", args.json)
-        print(f"Stdout:\n{e.stdout}", args.json)
-        print(f"Stderr:\n{e.stderr}", args.json)
-        return
+        emit_error(f"A/B test runner failed with exit code {e.returncode}", args.json)
+        logging(f"Stdout:\n{e.stdout}", args.json)
+        logging(f"Stderr:\n{e.stderr}", args.json)
+        sys.exit(1)
     except json.JSONDecodeError as e:
-        print(f"Error: Failed to parse A/B test results as JSON.", args.json)
-        print(f"Stdout:\n{ab_test_result.stdout}", args.json)
-        return
+        emit_error(f"Failed to parse A/B test results as JSON.", args.json)
+        logging(f"Stdout:\n{ab_test_result.stdout}", args.json)
+        sys.exit(1)
 
     report_content = "# A/Bテストレポート\n\n"
     report_content += f"生成日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
