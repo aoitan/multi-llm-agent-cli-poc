@@ -100,11 +100,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function assertEnvType(value: unknown, fieldName: string): EnvType {
-  if (value === undefined) {
-    return 'unknown';
+function assertNonEmptyString(value: unknown, fieldName: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid ${fieldName} in .cli-wrapper.json: ${String(value)}`);
   }
 
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    throw new Error(`Invalid ${fieldName} in .cli-wrapper.json: ${String(value)}`);
+  }
+
+  return trimmed;
+}
+
+function assertEnvType(value: unknown, fieldName: string): EnvType {
   if (value === 'prod' || value === 'staging' || value === 'dev' || value === 'unknown') {
     return value;
   }
@@ -126,25 +135,27 @@ function loadCliWrapperConfig(projectRoot: string): CliWrapperConfig {
     return {};
   }
 
-  const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8')) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(configPath, 'utf8')) as unknown;
+  } catch (err) {
+    throw new Error(
+      `Failed to parse ${configPath}: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
   if (!isRecord(parsed)) {
-    throw new Error('.cli-wrapper.json must contain a JSON object');
+    throw new Error(`${configPath} must contain a JSON object`);
   }
 
   const config: CliWrapperConfig = {};
 
   if (parsed.id !== undefined) {
-    if (typeof parsed.id !== 'string' || parsed.id.trim() === '') {
-      throw new Error(`Invalid id in .cli-wrapper.json: ${String(parsed.id)}`);
-    }
-    config.id = parsed.id;
+    config.id = assertNonEmptyString(parsed.id, 'id');
   }
 
   if (parsed.backend !== undefined) {
-    if (typeof parsed.backend !== 'string' || parsed.backend.trim() === '') {
-      throw new Error(`Invalid backend in .cli-wrapper.json: ${String(parsed.backend)}`);
-    }
-    config.backend = parsed.backend;
+    config.backend = assertNonEmptyString(parsed.backend, 'backend');
   }
 
   if (parsed.envType !== undefined) {

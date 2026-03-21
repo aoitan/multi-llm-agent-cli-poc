@@ -61,7 +61,7 @@ Phase 1 で対象とする CLI ツール：
 - `experiment/cli_wrapper/`：本ディレクトリ。CLI ラッパーの実験用 PoC 領域。
 - `src/`：本番実装領域。PoC で得られた知見を反映したコードを配置。
 - `scripts/`：共通ユーティリティや CI 用スクリプト。
-- 他の `experiments/*/`：他実験領域とは責務を明確に分離。
+- 他の `experiment/*/`：他実験領域とは責務を明確に分離。
 
 ## 関連 Issue
 

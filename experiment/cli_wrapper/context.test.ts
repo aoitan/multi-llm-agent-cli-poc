@@ -110,4 +110,37 @@ describe('detectProjectContext', () => {
     expect(context.envType).toBe('staging');
     expect(context.dangerLevel).toBe('normal');
   });
+
+  it('trims overridden id and backend values from .cli-wrapper.json', () => {
+    const repoDir = path.join(tempDir, 'trimmed-project');
+    fs.mkdirSync(repoDir);
+    initGitRepo(repoDir, 'feature/context');
+
+    fs.writeFileSync(
+      path.join(repoDir, '.cli-wrapper.json'),
+      JSON.stringify({
+        id: '  custom-project  ',
+        backend: '  copilot-proxy  ',
+      })
+    );
+
+    const context = detectProjectContext({ cwd: repoDir, env: {} });
+
+    expect(context.projectId).toBe('custom-project');
+    expect(context.backend).toBe('copilot-proxy');
+  });
+
+  it('wraps invalid .cli-wrapper.json parse errors with the config path', () => {
+    const repoDir = path.join(tempDir, 'broken-config-project');
+    fs.mkdirSync(repoDir);
+    initGitRepo(repoDir, 'feature/context');
+
+    const configPath = path.join(repoDir, '.cli-wrapper.json');
+    fs.writeFileSync(configPath, '{ invalid json');
+    const resolvedConfigPath = fs.realpathSync(configPath);
+
+    expect(() => detectProjectContext({ cwd: repoDir, env: {} })).toThrow(
+      `Failed to parse ${resolvedConfigPath}:`
+    );
+  });
 });
