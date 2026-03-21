@@ -4,6 +4,7 @@
 
 - CLI 名: GitHub Copilot CLI
 - 実行コマンド: `copilot`（または `gh copilot`）
+- 記録対象: 選定理由、バージョン確認結果、起動方法、PTY 挙動の初期観測
 
 ## 選定理由
 
@@ -15,8 +16,11 @@
 
 - 観測日: 2026-03-17
 - インストール確認:
-  - `which copilot` -> `/Users/aoitan/.nvm/versions/node/v22.18.0/bin/copilot`
+  - `which copilot` -> `<HOME>/.nvm/versions/node/v22.18.0/bin/copilot`
   - `npm list -g --depth=0` -> `@github/copilot@0.0.372`
+- バージョン確認方法:
+  - 優先: `copilot --version`
+  - 補助: `npm list -g --depth=0`
 - `copilot --version` の実行結果:
   - `ERROR: SecItemCopyMatching failed -50`
   - 現時点ではコマンド出力からバージョン文字列を直接取得できていない。
@@ -40,3 +44,4 @@
 ## 備考
 
 - 本メモは Issue #142 の初期記録。詳細な PTY 観測（逐次トークン出力、SIGINT/SIGTERM 応答、終了コード分類）は別タスクで拡張する。
+- Issue #142 の受け入れ条件にある「選定理由」「バージョンと起動コマンド」「対象 CLI の記録」は本ファイルで充足する。
