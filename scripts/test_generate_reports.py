@@ -1,23 +1,24 @@
-import unittest
-import os
+import io
 import json
-from unittest.mock import patch, MagicMock
-from scripts.generate_reports import main, extract_metrics # main関数とextract_metrics関数をインポート
+import os
+import subprocess
+import unittest
+from unittest.mock import MagicMock, patch
+
+from scripts.generate_reports import extract_metrics, main
+
 
 class TestGenerateReports(unittest.TestCase):
-
     def setUp(self):
-        # テスト用の設定ファイルを作成
         self.test_config_path = "test_ab_test_config.json"
-        self.test_results_path = "test_ab_test_results.json"
-        self.original_config_content = {
+        self.base_config = {
             "dynamic_prompt_ab_test_enabled": True,
             "prompt_language_test_enabled": True,
             "test_prompts": [
                 {
                     "id": "PROMPT_1_SOCIAL_ISSUES",
                     "user_prompt": "日本の高齢化社会における介護人材不足の解決策を3つ提案してください。",
-                    "expected_scenario_id": "social_issues"
+                    "expected_scenario_id": "social_issues",
                 }
             ],
             "test_groups": [
@@ -26,211 +27,233 @@ class TestGenerateReports(unittest.TestCase):
                     "type": "static",
                     "prompt_file_path": "prompts/default_prompts.json",
                     "workflow_id": "code_review_and_refactor",
-                    "prompt_language": "japanese"
+                    "prompt_language": "japanese",
                 },
                 {
                     "id": "dynamic_prompt_group",
                     "type": "dynamic",
                     "scenario_based_workflow_selection_enabled": True,
-                    "prompt_language": "english"
-                }
+                    "prompt_language": "english",
+                },
             ],
-            "evaluation_models": ["llama3:8b", "llama3:8b"]
+            "evaluation_models": ["llama3:8b", "llama3:8b"],
         }
-        with open(self.test_config_path, 'w', encoding='utf-8') as f:
-            json.dump(self.original_config_content, f)
+        self.write_config(self.base_config)
 
-        # テスト用のab_test_runner.pyの出力（ダミー）を作成
-        self.mock_ab_test_runner_output = {
+    def tearDown(self):
+        if os.path.exists(self.test_config_path):
+            os.remove(self.test_config_path)
+
+    def write_config(self, config_data):
+        with open(self.test_config_path, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, ensure_ascii=False)
+
+    def run_main(self, argv, mock_stdout=None, side_effect=None):
+        if mock_stdout is None:
+            mock_result = MagicMock()
+            mock_result.stdout = json.dumps(
+                {
+                    "PROMPT_1_SOCIAL_ISSUES": {
+                        "control": {
+                            "run_1": {
+                                "finalOutput": json.dumps("日本語の最終出力です。", ensure_ascii=False),
+                                "discussionLog": [
+                                    {"response_received": "Ollama API call to llama3:8b took 100.00 ms"},
+                                    {"response_received": "日本語の応答です。"},
+                                ],
+                            }
+                        },
+                        "dynamic_prompt_group": {
+                            "run_1": {
+                                "finalOutput": json.dumps("This is the final output in English."),
+                                "discussionLog": [
+                                    {"response_received": "Ollama API call to llama3:8b took 150.00 ms"},
+                                    {"response_received": "English response."},
+                                ],
+                            }
+                        },
+                    }
+                },
+                ensure_ascii=False,
+            )
+        else:
+            mock_result = MagicMock()
+            mock_result.stdout = mock_stdout
+
+        with patch("scripts.generate_reports.subprocess.run") as mock_run, patch(
+            "sys.argv", ["scripts/generate_reports.py", *argv]
+        ):
+            if side_effect is not None:
+                mock_run.side_effect = side_effect
+            else:
+                mock_run.return_value = mock_result
+
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                try:
+                    main()
+                    exit_code = None
+                except SystemExit as exc:
+                    exit_code = exc.code
+
+        return captured.getvalue(), exit_code, mock_run
+
+    def test_report_generation_uses_normalized_outputs(self):
+        output, exit_code, _ = self.run_main(["--config", self.test_config_path])
+
+        self.assertIsNone(exit_code)
+        self.assertIn("# A/Bテストレポート", output)
+        self.assertIn(f"設定ファイル: `{self.test_config_path}`", output)
+        self.assertIn("| 指標 | Control Group (日本語) | Dynamic Prompt Group (英語) |", output)
+        self.assertIn("日本語の最終出力です。", output)
+        self.assertIn("This is the final output in English.", output)
+        self.assertNotIn('"日本語の最終出力です。"', output)
+
+    def test_json_mode_success_returns_normalized_results(self):
+        output, exit_code, _ = self.run_main(["--json", "--config", self.test_config_path])
+
+        self.assertIsNone(exit_code)
+        payload = json.loads(output)
+        normalized_results = payload["test_results"]["PROMPT_1_SOCIAL_ISSUES"]
+        self.assertEqual(normalized_results["control"]["run_1"]["finalOutput"], "日本語の最終出力です。")
+        self.assertEqual(
+            normalized_results["dynamic_prompt_group"]["run_1"]["finalOutput"],
+            "This is the final output in English.",
+        )
+        self.assertIn("日本語の最終出力です。", payload["report_content_markdown"])
+        self.assertIn("This is the final output in English.", payload["report_content_markdown"])
+
+    def test_missing_test_prompts_json_mode(self):
+        config_without_prompts = dict(self.base_config)
+        config_without_prompts["test_prompts"] = []
+        self.write_config(config_without_prompts)
+
+        output, exit_code, mock_run = self.run_main(["--json", "--config", self.test_config_path])
+
+        mock_run.assert_not_called()
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            json.loads(output),
+            {"error": {"message": "Error: 'test_prompts' not found or empty in config. Exiting."}},
+        )
+
+    def test_missing_config_json_mode(self):
+        missing_path = "does-not-exist.json"
+        output, exit_code, mock_run = self.run_main(["--json", "--config", missing_path])
+
+        mock_run.assert_not_called()
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            json.loads(output),
+            {"error": {"message": f"Error: Config file not found: {missing_path}. Exiting."}},
+        )
+
+    def test_runner_error_envelope_json_mode(self):
+        output, exit_code, _ = self.run_main(
+            ["--json", "--config", self.test_config_path],
+            mock_stdout=json.dumps({"error": {"message": "runner failed"}}, ensure_ascii=False),
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            json.loads(output),
+            {"error": {"message": "A/B test runner reported an error: runner failed"}},
+        )
+
+    def test_runner_invalid_json_json_mode(self):
+        output, exit_code, _ = self.run_main(
+            ["--json", "--config", self.test_config_path],
+            mock_stdout="not valid json",
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            json.loads(output),
+            {"error": {"message": "Failed to parse A/B test results as JSON."}},
+        )
+
+    def test_runner_malformed_success_shape_json_mode(self):
+        malformed_payload = {
             "PROMPT_1_SOCIAL_ISSUES": {
                 "control": {
                     "run_1": {
-                        "finalOutput": "日本語の最終出力です。",
-                        "discussionLog": [
-                            {"response_received": "Ollama API call to llama3:8b took 100.00 ms"},
-                            {"response_received": "日本語の応答です。"}
-                        ]
-                    }
-                },
-                "dynamic_prompt_group": {
-                    "run_1": {
-                        "finalOutput": "This is the final output in English.",
-                        "discussionLog": [
-                            {"response_received": "Ollama API call to llama3:8b took 150.00 ms"},
-                            {"response_received": "English response."}
-                        ]
+                        "finalOutput": json.dumps("日本語の最終出力です。", ensure_ascii=False),
+                        "discussionLog": [],
                     }
                 }
             }
         }
-        with open(self.test_results_path, 'w', encoding='utf-8') as f:
-            json.dump(self.mock_ab_test_runner_output, f)
-
-    def tearDown(self):
-        # テスト用ファイルを削除
-        os.remove(self.test_config_path)
-        os.remove(self.test_results_path)
-
-    @patch('scripts.generate_reports.subprocess.run')
-    @patch('scripts.generate_reports.json.loads')
-    @patch('scripts.generate_reports.os.path.exists')
-    @patch('builtins.open', new_callable=unittest.mock.mock_open)
-    def test_report_generation(self, mock_open, mock_exists, mock_json_loads, mock_subprocess_run):
-        # subprocess.runのモック設定
-        mock_subprocess_run.return_value = MagicMock(stdout=json.dumps(self.mock_ab_test_runner_output), returncode=0)
-        
-        # os.path.existsのモック設定
-        mock_exists.side_effect = lambda x: x == self.test_config_path or x == "prompts/evaluation_prompt_template.md"
-
-        # json.loadsのモック設定
-        mock_json_loads.side_effect = [self.original_config_content, self.mock_ab_test_runner_output]
-
-        # main関数を実行
-        with patch('sys.argv', ['scripts/generate_reports.py', '--config', self.test_config_path]):
-            with patch('builtins.print') as mock_print: # print関数をモック
-                main()
-                
-                # printの呼び出し内容を検証
-                printed_output = "".join([call.args[0] for call in mock_print.call_args_list])
-                
-                self.assertIn("# A/Bテストレポート", printed_output)
-                self.assertIn("## テスト概要", printed_output)
-                self.assertIn(f"設定ファイル: `{self.test_config_path}`", printed_output)
-                self.assertIn("プロンプト言語A/Bテスト有効: True", printed_output)
-                self.assertIn("### プロンプト: PROMPT_1_SOCIAL_ISSUES", printed_output)
-                self.assertIn("#### 評価指標", printed_output)
-                self.assertIn("| 指標 | Control Group (日本語) | Dynamic Prompt Group (英語) |", printed_output)
-                self.assertIn("|---|---|---|", printed_output)
-                
-                # 応答メトリクスの期待値を算出
-                control_metrics = extract_metrics(
-                    self.mock_ab_test_runner_output["PROMPT_1_SOCIAL_ISSUES"]["control"]["run_1"]["discussionLog"]
-                )
-                dynamic_metrics = extract_metrics(
-                    self.mock_ab_test_runner_output["PROMPT_1_SOCIAL_ISSUES"]["dynamic_prompt_group"]["run_1"]["discussionLog"]
-                )
-
-                self.assertIn(
-                    f"| 総応答文字数 | {control_metrics['total_response_length']} | {dynamic_metrics['total_response_length']} |",
-                    printed_output
-                )
-                self.assertIn("| 平均応答時間 (ms) | 100.00 | 150.00 |", printed_output)
-                self.assertIn("| LLM呼び出し回数 | 1 | 1 |", printed_output)
-                self.assertIn("#### LLM応答比較", printed_output)
-                self.assertIn("##### Control Group (日本語)", printed_output)
-                self.assertIn("日本語の最終出力です。", printed_output)
-                self.assertIn("##### Dynamic Prompt Group (英語)", printed_output)
-                self.assertIn("This is the final output in English.", printed_output)
-
-    @patch('scripts.generate_reports.subprocess.run')
-    def test_missing_test_prompts_non_json(self, mock_subprocess_run):
-        config_without_prompts = dict(self.original_config_content)
-        config_without_prompts["test_prompts"] = []
-        with open(self.test_config_path, 'w', encoding='utf-8') as f:
-            json.dump(config_without_prompts, f)
-
-        with patch('sys.argv', ['scripts/generate_reports.py', '--config', self.test_config_path]):
-            with patch('builtins.print') as mock_print:
-                main()
-
-        mock_subprocess_run.assert_not_called()
-        printed_output = " ".join(call.args[0] for call in mock_print.call_args_list)
-        self.assertIn("Error: 'test_prompts' not found or empty in config. Exiting.", printed_output)
-
-    @patch('scripts.generate_reports.subprocess.run')
-    def test_missing_test_prompts_json_mode(self, mock_subprocess_run):
-        config_without_prompts = dict(self.original_config_content)
-        config_without_prompts["test_prompts"] = []
-        with open(self.test_config_path, 'w', encoding='utf-8') as f:
-            json.dump(config_without_prompts, f)
-
-        with patch('sys.argv', ['scripts/generate_reports.py', '--json', '--config', self.test_config_path]):
-            with patch('builtins.print') as mock_print:
-                main()
-
-        mock_subprocess_run.assert_not_called()
-        self.assertEqual(len(mock_print.call_args_list), 1)
-        error_payload = mock_print.call_args_list[0].args[0]
-        error_json = json.loads(error_payload)
-        self.assertEqual(
-            error_json,
-            {"error": {"message": "Error: 'test_prompts' not found or empty in config. Exiting."}}
+        output, exit_code, _ = self.run_main(
+            ["--json", "--config", self.test_config_path],
+            mock_stdout=json.dumps(malformed_payload, ensure_ascii=False),
         )
 
-    @patch('scripts.generate_reports.subprocess.run')
-    def test_first_prompt_not_dict(self, mock_subprocess_run):
-        config_with_invalid_prompt = dict(self.original_config_content)
-        config_with_invalid_prompt["test_prompts"] = ["not-a-dict"]
-        with open(self.test_config_path, 'w', encoding='utf-8') as f:
-            json.dump(config_with_invalid_prompt, f)
-
-        with patch('sys.argv', ['scripts/generate_reports.py', '--config', self.test_config_path]):
-            with patch('builtins.print') as mock_print:
-                main()
-
-        mock_subprocess_run.assert_not_called()
-        printed_output = " ".join(call.args[0] for call in mock_print.call_args_list)
-        self.assertIn("Error: The first entry in 'test_prompts' must be an object with prompt metadata.", printed_output)
-
-    @patch('scripts.generate_reports.subprocess.run')
-    def test_missing_user_prompt_key(self, mock_subprocess_run):
-        config_with_bad_prompt = dict(self.original_config_content)
-        config_with_bad_prompt["test_prompts"] = [{"id": "bad_prompt"}]
-        with open(self.test_config_path, 'w', encoding='utf-8') as f:
-            json.dump(config_with_bad_prompt, f)
-
-        with patch('sys.argv', ['scripts/generate_reports.py', '--config', self.test_config_path]):
-            with patch('builtins.print') as mock_print:
-                main()
-
-        mock_subprocess_run.assert_not_called()
-        printed_output = " ".join(call.args[0] for call in mock_print.call_args_list)
-        self.assertIn("Error: The first entry in 'test_prompts' must include a non-empty user_prompt.", printed_output)
-
-    @patch('scripts.generate_reports.subprocess.run')
-    def test_blank_user_prompt_string_json_mode(self, mock_subprocess_run):
-        config_with_blank_prompt = dict(self.original_config_content)
-        config_with_blank_prompt["test_prompts"] = [{"id": "blank_prompt", "user_prompt": "   "}]
-        with open(self.test_config_path, 'w', encoding='utf-8') as f:
-            json.dump(config_with_blank_prompt, f)
-
-        with patch('sys.argv', ['scripts/generate_reports.py', '--json', '--config', self.test_config_path]):
-            with patch('builtins.print') as mock_print:
-                main()
-
-        mock_subprocess_run.assert_not_called()
-        self.assertEqual(len(mock_print.call_args_list), 1)
-        error_payload = mock_print.call_args_list[0].args[0]
-        error_json = json.loads(error_payload)
+        self.assertEqual(exit_code, 1)
         self.assertEqual(
-            error_json,
-            {"error": {"message": "Error: The first entry in 'test_prompts' must include a non-empty user_prompt."}}
+            json.loads(output),
+            {
+                "error": {
+                    "message": (
+                        "Missing test group 'dynamic_prompt_group' in results for prompt "
+                        "'PROMPT_1_SOCIAL_ISSUES'."
+                    )
+                }
+            },
+        )
+
+    def test_runner_subprocess_failure_json_mode(self):
+        error = subprocess.CalledProcessError(3, ["python3", "scripts/ab_test_runner.py"], output="", stderr="boom")
+        output, exit_code, _ = self.run_main(
+            ["--json", "--config", self.test_config_path],
+            side_effect=error,
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            json.loads(output),
+            {"error": {"message": "A/B test runner failed with exit code 3."}},
+        )
+
+    def test_runner_subprocess_failure_with_error_json_mode(self):
+        error = subprocess.CalledProcessError(
+            1,
+            ["python3", "scripts/ab_test_runner.py"],
+            output=json.dumps({"error": {"message": "runner failed"}}, ensure_ascii=False),
+            stderr="boom",
+        )
+        output, exit_code, _ = self.run_main(
+            ["--json", "--config", self.test_config_path],
+            side_effect=error,
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            json.loads(output),
+            {"error": {"message": "A/B test runner reported an error: runner failed"}},
         )
 
     def test_extract_metrics(self):
         response1_content = "Response 1. Ollama API call to llama3:8b took 100.50 ms"
         response2_content = "Response 2. Ollama API call to llama3:8b took 200.50 ms"
         response3_content = "Response 3. No time here."
-        
+
         log = [
             {"response_received": response1_content},
             {"response_received": response2_content},
-            {"response_received": response3_content}
+            {"response_received": response3_content},
         ]
         metrics = extract_metrics(log)
-        self.assertEqual(metrics["total_response_length"], len(response1_content) + len(response2_content) + len(response3_content))
+        self.assertEqual(
+            metrics["total_response_length"],
+            len(response1_content) + len(response2_content) + len(response3_content),
+        )
         self.assertAlmostEqual(metrics["avg_response_time_ms"], 150.50)
         self.assertEqual(metrics["num_llm_calls"], 2)
 
-        # LLM呼び出しがない場合
-        response_no_llm_content = "Just a response."
-        log_no_llm = [
-            {"response_received": response_no_llm_content}
-        ]
-        metrics_no_llm = extract_metrics(log_no_llm)
-        self.assertEqual(metrics_no_llm["total_response_length"], len(response_no_llm_content))
+        metrics_no_llm = extract_metrics([{"response_received": "Just a response."}])
         self.assertEqual(metrics_no_llm["avg_response_time_ms"], 0)
         self.assertEqual(metrics_no_llm["num_llm_calls"], 0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
