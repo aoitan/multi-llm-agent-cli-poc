@@ -1,0 +1,5 @@
+phase: review_fix_loop
+stage: post
+repo_config: .kelpie/hooks.yaml
+user_config: /home/dev/.config/kelpie/hooks.yaml
+status: no hooks configured

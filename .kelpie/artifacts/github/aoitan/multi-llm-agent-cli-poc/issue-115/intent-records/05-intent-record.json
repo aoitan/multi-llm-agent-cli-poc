@@ -1,0 +1,25 @@
+{
+  "issue_number": "115",
+  "issue_source": "github",
+  "github_repo": "aoitan/multi-llm-agent-cli-poc",
+  "task_label": null,
+  "artifact_dir": ".kelpie/artifacts/github/aoitan/multi-llm-agent-cli-poc/issue-115",
+  "phase": "implementation",
+  "runner": "copilot",
+  "prompt_file": ".kelpie/artifacts/github/aoitan/multi-llm-agent-cli-poc/issue-115/.generated-prompts/implementation.prompt.md",
+  "instruction_targets": [
+    {
+      "requested_name": "AGENTS.md",
+      "target_path": "AGENTS.md",
+      "mode": "existing_same",
+      "existing_path": "AGENTS.md"
+    },
+    {
+      "requested_name": ".github/copilot-instructions.md",
+      "target_path": ".kelpie/instructions/.github/copilot-instructions.md",
+      "mode": "existing_conflict",
+      "existing_path": ".github/copilot-instructions.md"
+    }
+  ],
+  "status": "prepared"
+}

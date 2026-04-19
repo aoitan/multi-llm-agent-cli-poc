@@ -92,8 +92,65 @@ npm start -- --user-prompt "技術的な質問です" --prompt-file prompts/tech
 ## テスト
 
 - `npm test` : Jest による TypeScript テストと、A/B テスト関連の Python スクリプトを併用した統合テストを実行します。`npm run build` 済みであることに加え、テスト実行前に `source .venv/bin/activate` で Python 仮想環境を有効化する必要があります。
-- `python3 scripts/generate_reports.test.py` : Python のユニットテストを個別に実行する場合に利用します。
+- `python3 -m unittest scripts.test_generate_reports scripts.test_ab_test_runner` : `generate_reports.py` と `ab_test_runner.py` の Python テストを個別に実行する場合に利用します。
 - テストで一時ファイルが必要な場合は `src/testHelpers/testTempDir.ts` の `createTestTempDir` / `cleanupTestTempDir` を利用し、`afterEach` などで必ず `cleanupTestTempDir` を明示的に呼んでください（詳細: `doc/testing.md`）。
+
+### A/Bテストレポートの生成
+
+Markdown レポートを標準出力に出す場合:
+
+```bash
+python3 scripts/generate_reports.py --config config/ab_test_config.json
+```
+
+構造化 JSON を取得する場合:
+
+```bash
+python3 scripts/generate_reports.py --json --config config/ab_test_config.json
+```
+
+JSON モード成功時の出力には、少なくとも次の 3 つが含まれます。
+
+```json
+{
+  "report_metadata": {
+    "generated_at": "2026-04-19 10:47:18",
+    "config_file": "config/ab_test_config.json",
+    "prompt_language_test_enabled": true
+  },
+  "test_results": {
+    "PROMPT_1_SOCIAL_ISSUES": {
+      "control": {
+        "run_1": {
+          "finalOutput": "日本語の最終出力です。",
+          "discussionLog": []
+        }
+      },
+      "dynamic_prompt_group": {
+        "run_1": {
+          "finalOutput": "This is the final output in English.",
+          "discussionLog": []
+        }
+      }
+    }
+  },
+  "report_content_markdown": "# A/Bテストレポート\n..."
+}
+```
+
+JSON モード失敗時は、stdout にエラー JSON だけを返して非 0 終了します。
+
+```bash
+python3 scripts/generate_reports.py --json --config does-not-exist.json
+```
+
+```json
+{
+  "error": {
+    "message": "Error: Config file not found: does-not-exist.json. Exiting."
+  }
+}
+```
 
 ## プロジェクト構造
 
