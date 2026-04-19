@@ -1,5 +1,0 @@
-phase: planning
-stage: post
-repo_config: .kelpie/hooks.yaml
-user_config: /home/dev/.config/kelpie/hooks.yaml
-status: no hooks configured
